@@ -18,15 +18,22 @@ import { DocumentUploadCard } from "@/components/form/DocumentUploadCard";
 import { DynamicField } from "@/components/form/DynamicField";
 import { FormProgress } from "@/components/form/FormProgress";
 import { ErrorItem, FriendlyError } from "@/components/form/FriendlyError";
+import { OtpVerificationCard } from "@/components/form/OtpVerificationCard";
+import { ProfessionSelect } from "@/components/form/ProfessionSelect";
 import { ReviewSection } from "@/components/form/ReviewSection";
-import { VisaTypeSelect } from "@/components/form/VisaTypeSelect";
-import { useCategoryForm } from "@/hooks/useCategoryForm";
 import { useCountries } from "@/hooks/useCountries";
+import { useVisitForm } from "@/hooks/useVisitForm";
 import { ApiRequestError, api } from "@/lib/api";
+import { normalizeBdMobileInput } from "@/lib/bd-validation";
 import { ERROR_MESSAGES } from "@/lib/error-messages";
-import { getSectionIntro, groupFieldsBySection } from "@/lib/field-helpers";
+import {
+  formatProfessionLabel,
+  getSectionIntro,
+  groupFieldsBySection,
+} from "@/lib/field-helpers";
 import {
   validateDocumentsMap,
+  validateFieldValue,
   validateFullApplication,
   validateSectionFields,
 } from "@/lib/form-validation";
@@ -34,6 +41,8 @@ import {
   AnswerValue,
   CountrySummary,
   FormAnswers,
+  FormField,
+  ProfessionKey,
   UploadedDocumentEntry,
 } from "@/lib/types";
 import { useIntakeStore } from "@/store/intake-store";
@@ -47,14 +56,15 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
 
   const {
     countryCode,
-    category,
+    profession,
     answers,
     currentStepIndex,
     savedAt,
     hasHydrated,
     setCountry,
-    setCategory,
+    setProfession,
     setAnswer,
+    setAnswersBulk,
     setStepIndex,
     setLastSubmission,
     resetDraft,
@@ -70,7 +80,24 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
 
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [topErrorTitle, setTopErrorTitle] = useState<string | null>(null);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingReviewSection, setEditingReviewSection] = useState<string | null>(
+    null,
+  );
+
+  // OTP verification modal/step state
+  const [otpStage, setOtpStage] = useState<{
+    phone: string;
+    expiresInSeconds: number;
+    devOtp?: string | null;
+    sendSeq: number;
+  } | null>(null);
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [verifiedOtpToken, setVerifiedOtpToken] = useState<{
+    phone: string;
+    token: string;
+  } | null>(null);
 
   // Resume prompt state for standard /apply
   const [resumePromptDismissed, setResumePromptDismissed] = useState(false);
@@ -81,7 +108,9 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
   const [linkLoading, setLinkLoading] = useState(Boolean(intakeToken));
   const [linkError, setLinkError] = useState<string | null>(null);
   const [lockedCountryCode, setLockedCountryCode] = useState<string | null>(null);
-  const [lockedCategory, setLockedCategory] = useState<string | null>(null);
+  const [lockedProfession, setLockedProfession] = useState<ProfessionKey | null>(
+    null,
+  );
   const linkInitializedRef = useRef(false);
 
   const {
@@ -90,7 +119,6 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     error: countriesError,
   } = useCountries();
 
-  // Revoke object URLs on unmount
   useEffect(() => {
     return () => {
       Object.values(filesRef.current).forEach((entry) => {
@@ -99,7 +127,6 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     };
   }, []);
 
-  // Check saved draft once after hydration (public /apply only)
   useEffect(() => {
     if (intakeToken || !hasHydrated || checkedDraftRef.current) return;
     checkedDraftRef.current = true;
@@ -112,7 +139,6 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     }
   }, [intakeToken, hasHydrated, countryCode, answers, savedAt]);
 
-  // Resolve unique intake link
   useEffect(() => {
     if (!intakeToken || linkInitializedRef.current) return;
     linkInitializedRef.current = true;
@@ -133,14 +159,14 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
           setLockedCountryCode(res.country_code);
           setCountry(res.country_code);
         }
-        if (res.category) {
-          setLockedCategory(res.category);
-          setCategory(res.category);
+        if (res.profession) {
+          setLockedProfession(res.profession);
+          setProfession(res.profession);
         } else if (res.country_code) {
-          setCategory(null);
+          setProfession(null);
         }
 
-        if (res.country_code && res.category) {
+        if (res.country_code && res.profession) {
           setStepIndex(2);
         } else if (res.country_code) {
           setStepIndex(1);
@@ -163,7 +189,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     return () => {
       cancelled = true;
     };
-  }, [intakeToken, setCategory, setCountry, setStepIndex]);
+  }, [intakeToken, setCountry, setProfession, setStepIndex]);
 
   const selectedCountry: CountrySummary | null = useMemo(() => {
     if (!countryCode) return null;
@@ -175,28 +201,62 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
   }, [countries, countryCode]);
 
   const {
-    data: categoryForm,
+    data: visitForm,
     isLoading: formLoading,
     error: formError,
-  } = useCategoryForm(countryCode, category);
+  } = useVisitForm(countryCode);
+
+  const selectedProfile = useMemo(() => {
+    if (!visitForm || !profession) return null;
+    return visitForm.applicant_profiles[profession] ?? null;
+  }, [visitForm, profession]);
 
   const sections = useMemo(() => {
-    if (!categoryForm) return [];
-    return groupFieldsBySection(categoryForm.fields);
-  }, [categoryForm]);
+    if (!visitForm || !selectedProfile || !profession) return [];
+    return [
+      ...groupFieldsBySection(visitForm.common_information_fields, "common"),
+      ...groupFieldsBySection(
+        selectedProfile.profile_information_fields,
+        profession,
+      ),
+    ];
+  }, [visitForm, selectedProfile, profession]);
+
+  const allFields = useMemo(() => {
+    if (!visitForm || !selectedProfile) return [];
+    return [
+      ...visitForm.common_information_fields,
+      ...selectedProfile.profile_information_fields,
+    ];
+  }, [visitForm, selectedProfile]);
+
+  const commonDocuments = useMemo(
+    () => visitForm?.common_required_documents ?? [],
+    [visitForm],
+  );
+
+  const additionalDocuments = useMemo(
+    () => selectedProfile?.additional_documents ?? [],
+    [selectedProfile],
+  );
+
+  const allDocuments = useMemo(
+    () => [...commonDocuments, ...additionalDocuments],
+    [commonDocuments, additionalDocuments],
+  );
 
   const stepNames = useMemo(() => {
-    if (!categoryForm) {
-      return ["Country", "Visa Type"];
+    if (!visitForm || !profession) {
+      return ["Country", "Profession"];
     }
     return [
       "Country",
-      "Visa Type",
+      "Profession",
       ...sections.map((s) => s.section),
       "Documents",
       "Check & Send",
     ];
-  }, [categoryForm, sections]);
+  }, [visitForm, profession, sections]);
 
   const sectionStartIndex = 2;
   const documentsStepIndex = sectionStartIndex + sections.length;
@@ -207,7 +267,6 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     Math.max(0, stepNames.length - 1),
   );
 
-  // Sync RHF when draft resets
   useEffect(() => {
     resetRhf(answers);
   }, [answers, resetRhf]);
@@ -226,16 +285,40 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleFieldChange = (key: string, value: AnswerValue) => {
-    setAnswer(key, value);
-    if (fieldErrors[key]) {
+  const handleFieldChange = (field: FormField, value: AnswerValue) => {
+    setAnswer(field.key, value);
+
+    if (field.key === "phone_primary") {
+      setVerifiedOtpToken(null);
+    }
+
+    const nextAnswers: FormAnswers = { ...answers, [field.key]: value };
+    if (fieldErrors[field.key]) {
+      const nextErr = validateFieldValue(field, value, nextAnswers);
       setFieldErrors((prev) => {
         const next = { ...prev };
-        delete next[key];
+        if (nextErr) {
+          next[field.key] = nextErr;
+        } else {
+          delete next[field.key];
+        }
         return next;
       });
     }
     setTopErrorTitle(null);
+  };
+
+  const handleFieldBlur = (field: FormField) => {
+    const err = validateFieldValue(field, answers[field.key], answers);
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      if (err) {
+        next[field.key] = err;
+      } else {
+        delete next[field.key];
+      }
+      return next;
+    });
   };
 
   const handleSelectFile = (docKey: string, entry: UploadedDocumentEntry) => {
@@ -281,16 +364,16 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
         return sectionStartIndex + i;
       }
     }
-    if (categoryForm?.documents.some((d) => d.key === key)) {
+    if (allDocuments.some((d) => d.key === key)) {
       return documentsStepIndex;
     }
     return reviewStepIndex;
   };
 
   const getLabelForKey = (key: string): string => {
-    const field = categoryForm?.fields.find((f) => f.key === key);
+    const field = allFields.find((f) => f.key === key);
     if (field) return field.label;
-    const doc = categoryForm?.documents.find((d) => d.key === key);
+    const doc = allDocuments.find((d) => d.key === key);
     if (doc) return doc.label;
     return key;
   };
@@ -305,6 +388,8 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
   };
 
   const handleJumpToStep = (stepIdx: number, focusKey?: string) => {
+    setOtpStage(null);
+    setOtpError(null);
     setTopErrorTitle(null);
     setStepIndex(stepIdx);
     if (focusKey) {
@@ -331,8 +416,8 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     }
 
     if (safeStepIndex === 1) {
-      if (!category || !categoryForm) {
-        const msg = "Please choose a visa type to continue.";
+      if (!profession || !visitForm) {
+        const msg = "Please choose your profession to continue.";
         setTopErrorTitle(msg);
         toast.error(msg);
         scrollToTop();
@@ -364,8 +449,8 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
       return;
     }
 
-    if (safeStepIndex === documentsStepIndex && categoryForm) {
-      const docErrors = validateDocumentsMap(categoryForm.documents, files);
+    if (safeStepIndex === documentsStepIndex) {
+      const docErrors = validateDocumentsMap(allDocuments, files);
       if (Object.keys(docErrors).length > 0) {
         setFieldErrors((prev) => ({ ...prev, ...docErrors }));
         setTopErrorTitle(ERROR_MESSAGES.genericValidation);
@@ -383,11 +468,10 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     setTopErrorTitle(null);
     if (safeStepIndex <= 0) return;
 
-    // Respect locked pre-selections from unique links
     if (safeStepIndex === 1 && lockedCountryCode) {
       return;
     }
-    if (safeStepIndex === 2 && lockedCountryCode && lockedCategory) {
+    if (safeStepIndex === 2 && lockedCountryCode && lockedProfession) {
       return;
     }
 
@@ -395,10 +479,73 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     scrollToTop();
   };
 
-  const handleSubmitFinal = async () => {
-    if (!categoryForm || !countryCode || !category) return;
+  const submitApplicationWithOtpToken = async (
+    otpTokenToUse: string,
+  ): Promise<boolean> => {
+    if (!visitForm || !countryCode || !profession) return false;
 
-    const allErrors = validateFullApplication(categoryForm, answers, files);
+    setIsSubmitting(true);
+    try {
+      const result = await api.submitApplication({
+        countryCode,
+        profession,
+        answers,
+        intakeToken,
+        otpToken: otpTokenToUse,
+        files,
+      });
+
+      setLastSubmission(result);
+      resetDraft();
+      setOtpStage(null);
+      setVerifiedOtpToken(null);
+      toast.success("Application sent successfully!");
+      router.push("/apply/success");
+      return true;
+    } catch (err: unknown) {
+      if (err instanceof ApiRequestError) {
+        if (err.status === 401 || err.message === ERROR_MESSAGES.otpAlreadyUsed) {
+          setVerifiedOtpToken(null);
+          setOtpError(err.message);
+          toast.error(err.message);
+          return false;
+        }
+        if (Object.keys(err.fieldErrors).length > 0) {
+          setFieldErrors(err.fieldErrors);
+        }
+        setOtpStage(null);
+        setTopErrorTitle(err.message);
+        toast.error(err.message);
+        scrollToTop();
+      } else {
+        setOtpError(ERROR_MESSAGES.serverError);
+        toast.error(ERROR_MESSAGES.serverError);
+      }
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleStartOtpAndSubmit = async () => {
+    if (!visitForm || !countryCode || !profession) return;
+
+    if (editingReviewSection) {
+      const msg = `Please tap Save or Cancel on "${editingReviewSection}" before submitting.`;
+      toast.error(msg);
+      const secEl = document.getElementById(`review-section-${editingReviewSection}`);
+      if (secEl) {
+        secEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      return;
+    }
+
+    const allErrors = validateFullApplication(
+      allFields,
+      allDocuments,
+      answers,
+      files,
+    );
     if (Object.keys(allErrors).length > 0) {
       setFieldErrors(allErrors);
       setTopErrorTitle(ERROR_MESSAGES.genericValidation);
@@ -407,36 +554,88 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
       return;
     }
 
-    setIsSubmitting(true);
+    const rawPhone =
+      typeof answers["phone_primary"] === "string"
+        ? answers["phone_primary"]
+        : "";
+    const normalizedPhone = normalizeBdMobileInput(rawPhone);
+
+    // If user already holds a valid unconsumed token for this exact number, submit directly
+    if (verifiedOtpToken && verifiedOtpToken.phone === normalizedPhone) {
+      await submitApplicationWithOtpToken(verifiedOtpToken.token);
+      return;
+    }
+
+    setIsSendingOtp(true);
     setTopErrorTitle(null);
+    setOtpError(null);
 
     try {
-      const result = await api.submitApplication({
-        countryCode,
-        category,
-        answers,
-        intakeToken,
-        files,
-      });
-
-      setLastSubmission(result);
-      resetDraft();
-      toast.success("Application sent successfully!");
-      router.push("/apply/success");
+      const res = await api.sendOtp(normalizedPhone);
+      setOtpStage((prev) => ({
+        phone: normalizedPhone,
+        expiresInSeconds: res.expiresInSeconds,
+        devOtp: res.devOtp ?? null,
+        sendSeq: (prev?.sendSeq ?? 0) + 1,
+      }));
+      toast.success("Verification code sent to your mobile number.");
+      scrollToTop();
     } catch (err: unknown) {
-      if (err instanceof ApiRequestError) {
-        if (Object.keys(err.fieldErrors).length > 0) {
-          setFieldErrors(err.fieldErrors);
-        }
-        setTopErrorTitle(err.message);
-        toast.error(err.message);
-        scrollToTop();
-      } else {
-        setTopErrorTitle(ERROR_MESSAGES.serverError);
-        toast.error(ERROR_MESSAGES.serverError);
-        scrollToTop();
-      }
+      const msg =
+        err instanceof ApiRequestError ? err.message : ERROR_MESSAGES.serverError;
+      setTopErrorTitle(msg);
+      toast.error(msg);
+      scrollToTop();
     } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (!otpStage) return;
+    setIsSendingOtp(true);
+    setOtpError(null);
+
+    try {
+      const res = await api.sendOtp(otpStage.phone);
+      setOtpStage((prev) =>
+        prev
+          ? {
+              ...prev,
+              expiresInSeconds: res.expiresInSeconds,
+              devOtp: res.devOtp ?? null,
+              sendSeq: prev.sendSeq + 1,
+            }
+          : null,
+      );
+      toast.success("New verification code sent.");
+    } catch (err: unknown) {
+      const msg =
+        err instanceof ApiRequestError ? err.message : ERROR_MESSAGES.serverError;
+      setOtpError(msg);
+      toast.error(msg);
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyAndSubmit = async (code: string) => {
+    if (!otpStage) return;
+    setIsSubmitting(true);
+    setOtpError(null);
+
+    try {
+      const verifyRes = await api.verifyOtp(otpStage.phone, code);
+      setVerifiedOtpToken({
+        phone: otpStage.phone,
+        token: verifyRes.otpToken,
+      });
+      await submitApplicationWithOtpToken(verifyRes.otpToken);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof ApiRequestError ? err.message : ERROR_MESSAGES.serverError;
+      setOtpError(msg);
+      toast.error(msg);
       setIsSubmitting(false);
     }
   };
@@ -448,6 +647,9 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     setFiles({});
     setFieldErrors({});
     setTopErrorTitle(null);
+    setOtpStage(null);
+    setOtpError(null);
+    setVerifiedOtpToken(null);
     resetDraft();
     setResumePromptDismissed(true);
   };
@@ -486,7 +688,6 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     );
   }
 
-  // Resume saved draft banner
   if (!intakeToken && hadSavedDraftOnMount && !resumePromptDismissed) {
     return (
       <div className="mx-auto max-w-xl rounded-2xl border-2 border-blue-200 bg-white p-6 shadow-sm sm:p-8">
@@ -522,15 +723,38 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     );
   }
 
+  if (otpStage) {
+    return (
+      <div className="space-y-6 pb-10">
+        <OtpVerificationCard
+          key={otpStage.sendSeq}
+          phone={otpStage.phone}
+          initialExpiresSeconds={otpStage.expiresInSeconds}
+          devOtp={otpStage.devOtp}
+          errorMessage={otpError}
+          isVerifying={isSubmitting}
+          isResending={isSendingOtp}
+          onVerifyAndSubmit={handleVerifyAndSubmit}
+          onResendOtp={handleResendOtp}
+          onBackToReview={() => {
+            setOtpStage(null);
+            setOtpError(null);
+            scrollToTop();
+          }}
+        />
+      </div>
+    );
+  }
+
   const currentSectionGroup =
     safeStepIndex >= sectionStartIndex && safeStepIndex < documentsStepIndex
       ? sections[safeStepIndex - sectionStartIndex]
       : null;
 
   const reviewValidationErrors =
-    safeStepIndex === reviewStepIndex && categoryForm
+    safeStepIndex === reviewStepIndex && visitForm && profession
       ? {
-          ...validateFullApplication(categoryForm, answers, files),
+          ...validateFullApplication(allFields, allDocuments, answers, files),
           ...fieldErrors,
         }
       : {};
@@ -546,10 +770,10 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
                 .filter((pair): pair is [string, string] => Boolean(pair[1])),
             ),
           )
-        : safeStepIndex === documentsStepIndex && categoryForm
+        : safeStepIndex === documentsStepIndex
           ? buildErrorItems(
               Object.fromEntries(
-                categoryForm.documents
+                allDocuments
                   .map((d) => [d.key, fieldErrors[d.key]])
                   .filter((pair): pair is [string, string] => Boolean(pair[1])),
               ),
@@ -559,7 +783,9 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
   const canGoBack =
     safeStepIndex > 0 &&
     !(safeStepIndex === 1 && Boolean(lockedCountryCode)) &&
-    !(safeStepIndex === 2 && Boolean(lockedCountryCode && lockedCategory));
+    !(safeStepIndex === 2 && Boolean(lockedCountryCode && lockedProfession));
+
+  const professionDisplay = profession ? formatProfessionLabel(profession) : "";
 
   return (
     <div className="space-y-6 pb-24 md:pb-10">
@@ -569,7 +795,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
         maxReachableIndex={safeStepIndex}
         onSelectStep={(idx) => {
           if (idx === 0 && lockedCountryCode) return;
-          if (idx <= 1 && lockedCountryCode && lockedCategory) return;
+          if (idx <= 1 && lockedCountryCode && lockedProfession) return;
           handleJumpToStep(idx);
         }}
       />
@@ -596,12 +822,21 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
         )}
 
         {safeStepIndex === 1 && selectedCountry && (
-          <VisaTypeSelect
+          <ProfessionSelect
             country={selectedCountry}
-            selectedCategory={category}
-            locked={Boolean(lockedCategory)}
-            onSelectCategory={(cat) => {
-              setCategory(cat);
+            visitForm={visitForm}
+            isLoading={formLoading}
+            errorMessage={
+              formError
+                ? formError instanceof ApiRequestError
+                  ? formError.message
+                  : ERROR_MESSAGES.formNotFound
+                : null
+            }
+            selectedProfession={profession}
+            locked={Boolean(lockedProfession)}
+            onSelectProfession={(prof) => {
+              setProfession(prof);
               setTopErrorTitle(null);
             }}
           />
@@ -624,11 +859,11 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
           />
         )}
 
-        {currentSectionGroup && categoryForm && (
+        {currentSectionGroup && visitForm && (
           <div className="space-y-6">
             <div className="space-y-1 border-b border-slate-100 pb-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                {categoryForm.country} — {categoryForm.official_visa_name}
+                {visitForm.country} — {visitForm.official_visa_name} • {professionDisplay}
               </p>
               <h2 className="text-2xl font-bold text-slate-900">
                 {currentSectionGroup.section}
@@ -650,19 +885,21 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
                   key={field.key}
                   field={field}
                   value={answers[field.key]}
+                  allAnswers={answers}
                   error={fieldErrors[field.key]}
-                  onChange={(val) => handleFieldChange(field.key, val)}
+                  onChange={(val) => handleFieldChange(field, val)}
+                  onBlurValidate={() => handleFieldBlur(field)}
                 />
               ))}
             </div>
           </div>
         )}
 
-        {safeStepIndex === documentsStepIndex && categoryForm && (
+        {safeStepIndex === documentsStepIndex && visitForm && profession && (
           <div className="space-y-6">
             <div className="space-y-1 border-b border-slate-100 pb-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                {categoryForm.country} — {categoryForm.official_visa_name}
+                {visitForm.country} — {visitForm.official_visa_name} • {professionDisplay}
               </p>
               <h2 className="text-2xl font-bold text-slate-900">
                 Upload Your Documents
@@ -682,8 +919,17 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
               </div>
             )}
 
+            {/* Common Documents Group */}
             <div className="space-y-4">
-              {categoryForm.documents.map((doc) => (
+              <div className="border-b border-slate-200 pb-2">
+                <h3 className="text-lg font-bold text-slate-900">
+                  Common Documents (For All Applicants)
+                </h3>
+                <p className="text-xs font-medium text-blue-800">
+                  সকল আবেদনকারীর জন্য প্রয়োজনীয় সাধারণ কাগজপত্র
+                </p>
+              </div>
+              {commonDocuments.map((doc) => (
                 <DocumentUploadCard
                   key={doc.key}
                   document={doc}
@@ -695,25 +941,68 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
                 />
               ))}
             </div>
+
+            {/* Profession-specific Additional Documents Group */}
+            {additionalDocuments.length > 0 && (
+              <div className="space-y-4 pt-4">
+                <div className="border-b border-blue-200 pb-2">
+                  <h3 className="text-lg font-bold text-blue-950">
+                    Additional Documents for {professionDisplay}
+                  </h3>
+                  <p className="text-xs font-medium text-blue-800">
+                    আপনার পেশা ({professionDisplay}) অনুযায়ী অতিরিক্ত কাগজপত্র
+                  </p>
+                </div>
+                {additionalDocuments.map((doc) => (
+                  <DocumentUploadCard
+                    key={doc.key}
+                    document={doc}
+                    entry={files[doc.key]}
+                    error={fieldErrors[doc.key]}
+                    onSelectFile={handleSelectFile}
+                    onRemoveFile={handleRemoveFile}
+                    onLocalError={handleLocalDocError}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {safeStepIndex === reviewStepIndex && categoryForm && category && (
+        {safeStepIndex === reviewStepIndex && visitForm && profession && (
           <ReviewSection
-            form={categoryForm}
-            category={category}
+            visitForm={visitForm}
+            profession={profession}
             sections={sections}
+            commonDocuments={commonDocuments}
+            additionalDocuments={additionalDocuments}
             answers={answers}
             files={files}
             errorItems={currentStepErrorItems}
-            documentsStepIndex={documentsStepIndex}
-            sectionStartIndex={sectionStartIndex}
+            editingSection={editingReviewSection}
+            onEditingSectionChange={setEditingReviewSection}
+            onSaveSection={(fields, updates) => {
+              setAnswersBulk(updates);
+              if ("phone_primary" in updates) {
+                setVerifiedOtpToken(null);
+              }
+              setFieldErrors((prev) => {
+                const next = { ...prev };
+                for (const f of fields) {
+                  delete next[f.key];
+                }
+                return next;
+              });
+              setTopErrorTitle(null);
+            }}
+            onSelectFile={handleSelectFile}
+            onRemoveFile={handleRemoveFile}
             onJumpToStep={handleJumpToStep}
           />
         )}
       </div>
 
-      {/* Bottom Navigation Bar (sticky on mobile, normal on desktop) */}
+      {/* Bottom Navigation Bar */}
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 p-3 backdrop-blur md:static md:border-0 md:bg-transparent md:p-0">
         <div className="mx-auto flex max-w-[800px] items-center justify-between gap-3">
           {canGoBack ? (
@@ -721,7 +1010,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
               type="button"
               variant="outline"
               onClick={handleBack}
-              disabled={isSubmitting}
+              disabled={isSendingOtp || isSubmitting}
               className="h-12 min-w-28 border-slate-300 bg-white px-5 text-base font-semibold text-slate-800"
             >
               <ArrowLeft className="mr-2 h-5 w-5" aria-hidden="true" />
@@ -737,7 +1026,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
               onClick={handleContinue}
               disabled={
                 (safeStepIndex === 0 && !selectedCountry) ||
-                (safeStepIndex === 1 && (!category || formLoading))
+                (safeStepIndex === 1 && (!profession || formLoading))
               }
               className="h-12 flex-1 bg-blue-700 px-6 text-base font-semibold text-white hover:bg-blue-800 sm:flex-initial sm:min-w-44"
             >
@@ -747,19 +1036,19 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
           ) : (
             <Button
               type="button"
-              onClick={handleSubmitFinal}
-              disabled={isSubmitting}
+              onClick={handleStartOtpAndSubmit}
+              disabled={isSendingOtp || isSubmitting}
               className="h-12 flex-1 bg-emerald-700 px-7 text-base font-semibold text-white hover:bg-emerald-800 sm:flex-initial sm:min-w-52"
             >
-              {isSubmitting ? (
+              {isSendingOtp ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" aria-hidden="true" />
-                  Sending… please wait
+                  Sending OTP…
                 </>
               ) : (
                 <>
                   <Send className="mr-2 h-5 w-5" aria-hidden="true" />
-                  Check &amp; Send
+                  Send OTP &amp; Submit
                 </>
               )}
             </Button>

@@ -11,6 +11,7 @@ import {
   Loader2,
   LogOut,
   Menu,
+  ShieldAlert,
   ShieldCheck,
   X,
 } from "lucide-react";
@@ -35,6 +36,7 @@ const NAV_ITEMS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/submissions", label: "Submissions", icon: FileText },
   { href: "/admin/links", label: "Unique Links", icon: Link2 },
+  { href: "/admin/otp", label: "OTP Activity", icon: ShieldAlert },
 ];
 
 export default function AdminDashboardLayout({

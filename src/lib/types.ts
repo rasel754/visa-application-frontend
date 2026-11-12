@@ -8,6 +8,9 @@ export type FieldType =
   | "textarea"
   | "table";
 
+export type ProfessionKey = "student" | "businessman" | "employee";
+export type ProfessionEnum = "STUDENT" | "BUSINESSMAN" | "EMPLOYEE";
+
 export interface FormField {
   key: string;
   label: string;
@@ -24,25 +27,42 @@ export interface FormDocument {
   note?: string;
 }
 
+export interface GroupedFormDocument extends FormDocument {
+  group: "common" | ProfessionKey;
+}
+
+export interface ApplicantProfileData {
+  label: string;
+  description: string;
+  profile_information_fields: FormField[];
+  additional_documents: FormDocument[];
+}
+
 export interface CountrySummary {
   country: string;
   country_code: string;
   region: string;
-  categories: string[];
 }
 
-export interface CategoryForm {
+export interface VisitForm {
   country: string;
   country_code: string;
+  region: string;
+  official_authority: string;
+  official_application_system: string;
+  visa_type: "visit";
   official_visa_name: string;
   official_form: string;
-  official_authority: string;
-  fields: FormField[];
-  documents: FormDocument[];
+  source_url: string;
+  last_verified_at: string;
+  common_information_fields: FormField[];
+  common_required_documents: FormDocument[];
+  applicant_profiles: Record<ProfessionKey, ApplicantProfileData>;
 }
 
 export interface SectionGroup {
   section: string;
+  group: "common" | ProfessionKey;
   fields: FormField[];
 }
 
@@ -62,9 +82,12 @@ export type SubmissionStatus =
   | "COMPLETED"
   | "REJECTED";
 
+export type OtpStatus = "SENT" | "VERIFIED" | "EXPIRED" | "FAILED" | "USED";
+
 export interface SubmissionDocumentMeta {
   id: string;
   documentKey: string;
+  group: string;
   label: string;
   originalName: string;
   mimeType: string;
@@ -77,12 +100,15 @@ export interface SubmissionSummary {
   reference: string;
   countryCode: string;
   countryName: string;
-  category: string;
+  visaType: string;
+  profession: ProfessionEnum | null;
   officialVisaName: string;
   applicantName: string;
   applicantPhone: string;
   applicantEmail: string | null;
   status: SubmissionStatus;
+  otpVerified: boolean;
+  otpVerifiedPhone: string | null;
   createdAt: string;
   updatedAt: string;
   _count: {
@@ -90,22 +116,35 @@ export interface SubmissionSummary {
   };
 }
 
+export interface SubmissionDetailSection {
+  section: string;
+  fields: FormField[];
+}
+
 export interface SubmissionDetail {
   id: string;
   reference: string;
   countryCode: string;
   countryName: string;
-  category: string;
+  visaType: string;
+  profession: ProfessionEnum | null;
+  professionLabel: string;
   officialVisaName: string;
   applicantName: string;
   applicantPhone: string;
   applicantEmail: string | null;
   answers: FormAnswers;
   status: SubmissionStatus;
+  otpVerified: boolean;
+  otpVerifiedPhone: string | null;
   createdAt: string;
   updatedAt: string;
   documents: SubmissionDocumentMeta[];
-  sections: SectionGroup[];
+  commonSections: SubmissionDetailSection[];
+  professionSections: SubmissionDetailSection[];
+  sections: SubmissionDetailSection[];
+  commonDocuments: FormDocument[];
+  additionalDocuments: FormDocument[];
   requiredDocuments: FormDocument[];
 }
 
@@ -134,7 +173,7 @@ export interface IntakeLinkItem {
   token: string;
   countryCode: string | null;
   countryName: string | null;
-  category: string | null;
+  profession: ProfessionEnum | null;
   expiresAt: string | null;
   usedAt: string | null;
   createdAt: string;
@@ -144,7 +183,56 @@ export interface IntakeLinkItem {
 export interface LinkResolution {
   valid: boolean;
   country_code: string | null;
-  category: string | null;
+  profession: ProfessionKey | null;
+}
+
+export interface OtpSendResponse {
+  sent: boolean;
+  expiresInSeconds: number;
+  devOtp?: string;
+}
+
+export interface OtpVerifyResponse {
+  verified: boolean;
+  otpToken: string;
+}
+
+export interface OtpStats {
+  sentToday: number;
+  verifiedToday: number;
+  expiredToday: number;
+  failedToday: number;
+  successRate: number;
+}
+
+export interface OtpLogItem {
+  id: string;
+  phone: string;
+  status: OtpStatus;
+  gatewayRef: string | null;
+  attempts: number;
+  expiresAt: string;
+  verifiedAt: string | null;
+  usedAt: string | null;
+  createdAt: string;
+  submissionId: string | null;
+  submissionReference: string | null;
+  isBlocked: boolean;
+}
+
+export interface PaginatedOtpLogs {
+  items: OtpLogItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface BlockedPhoneItem {
+  id: string;
+  phone: string;
+  reason: string | null;
+  createdAt: string;
 }
 
 export interface SubmitSuccessPayload {
@@ -157,4 +245,3 @@ export interface ApiErrorBody {
   message: string;
   fieldErrors: Record<string, string>;
 }
-

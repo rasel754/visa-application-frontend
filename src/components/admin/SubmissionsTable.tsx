@@ -12,17 +12,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { OtpVerifiedBadge } from "@/components/admin/OtpBadges";
+import { ProfessionBadge } from "@/components/admin/ProfessionBadge";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { SubmissionSummary } from "@/lib/types";
 
 interface SubmissionsTableProps {
   items: SubmissionSummary[];
   emptyMessage?: string;
-}
-
-function formatCategory(cat: string): string {
-  if (!cat) return "";
-  return cat.charAt(0).toUpperCase() + cat.slice(1);
 }
 
 export function SubmissionsTable({
@@ -50,9 +47,10 @@ export function SubmissionsTable({
               Applicant Name
             </TableHead>
             <TableHead className="font-semibold text-slate-700">Phone</TableHead>
+            <TableHead className="font-semibold text-slate-700">OTP</TableHead>
             <TableHead className="font-semibold text-slate-700">Country</TableHead>
             <TableHead className="font-semibold text-slate-700">
-              Visa Type
+              Profession
             </TableHead>
             <TableHead className="font-semibold text-slate-700">Status</TableHead>
             <TableHead className="text-right font-semibold text-slate-700">
@@ -75,11 +73,17 @@ export function SubmissionsTable({
               <TableCell className="whitespace-nowrap text-sm text-slate-700">
                 {item.applicantPhone || "—"}
               </TableCell>
+              <TableCell className="whitespace-nowrap">
+                <OtpVerifiedBadge
+                  verified={item.otpVerified}
+                  phone={item.otpVerifiedPhone}
+                />
+              </TableCell>
               <TableCell className="whitespace-nowrap text-sm text-slate-800">
                 {item.countryName}
               </TableCell>
-              <TableCell className="whitespace-nowrap text-sm text-slate-700">
-                {formatCategory(item.category)}
+              <TableCell className="whitespace-nowrap">
+                <ProfessionBadge profession={item.profession} />
               </TableCell>
               <TableCell className="whitespace-nowrap">
                 <StatusBadge status={item.status} />
@@ -99,4 +103,3 @@ export function SubmissionsTable({
     </div>
   );
 }
-

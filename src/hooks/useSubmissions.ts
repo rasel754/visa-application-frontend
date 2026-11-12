@@ -23,7 +23,7 @@ export function useAdminStats() {
 export function useSubmissions(params: {
   search?: string;
   country?: string;
-  category?: string;
+  profession?: string;
   status?: string;
   from?: string;
   to?: string;
@@ -79,7 +79,7 @@ export function useCreateAdminLink() {
   return useMutation({
     mutationFn: (payload: {
       countryCode?: string | null;
-      category?: string | null;
+      profession?: string | null;
       expiresInDays?: number | null;
     }) => api.createAdminLink(payload),
     onSuccess: () => {
@@ -98,3 +98,55 @@ export function useDeleteAdminLink() {
   });
 }
 
+export function useAdminOtpStats() {
+  return useQuery({
+    queryKey: ["admin-otp-stats"],
+    queryFn: () => api.fetchAdminOtpStats(),
+    refetchOnMount: "always",
+  });
+}
+
+export function useAdminOtpLogs(params: {
+  phone?: string;
+  status?: string;
+  date?: string;
+  page?: number;
+  limit?: number;
+}) {
+  return useQuery({
+    queryKey: ["admin-otp-logs", params],
+    queryFn: () => api.fetchAdminOtpLogs(params),
+    refetchOnMount: "always",
+  });
+}
+
+export function useBlockedPhones() {
+  return useQuery({
+    queryKey: ["admin-blocked-phones"],
+    queryFn: () => api.fetchAdminBlockedPhones(),
+    refetchOnMount: "always",
+  });
+}
+
+export function useBlockPhone() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { phone: string; reason?: string | null }) =>
+      api.blockPhone(payload.phone, payload.reason),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin-blocked-phones"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-otp-logs"] });
+    },
+  });
+}
+
+export function useUnblockPhone() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.unblockPhone(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["admin-blocked-phones"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-otp-logs"] });
+    },
+  });
+}

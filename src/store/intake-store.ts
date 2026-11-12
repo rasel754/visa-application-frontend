@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist, StateStorage } from "zustand/middleware";
-import { AnswerValue, FormAnswers, SubmitSuccessPayload } from "@/lib/types";
+import { AnswerValue, FormAnswers, ProfessionKey, SubmitSuccessPayload } from "@/lib/types";
 
 const noopStorage: StateStorage = {
   getItem: () => null,
@@ -12,14 +12,14 @@ const noopStorage: StateStorage = {
 
 interface IntakeState {
   countryCode: string | null;
-  category: string | null;
+  profession: ProfessionKey | null;
   answers: FormAnswers;
   currentStepIndex: number;
   savedAt: string | null;
   hasHydrated: boolean;
   lastSubmission: SubmitSuccessPayload | null;
   setCountry: (countryCode: string | null) => void;
-  setCategory: (category: string | null) => void;
+  setProfession: (profession: ProfessionKey | null) => void;
   setAnswer: (key: string, value: AnswerValue) => void;
   setAnswersBulk: (updates: FormAnswers) => void;
   setStepIndex: (index: number) => void;
@@ -49,7 +49,7 @@ export const useIntakeStore = create<IntakeState>()(
   persist(
     (set) => ({
       countryCode: null,
-      category: null,
+      profession: null,
       answers: {},
       currentStepIndex: 0,
       savedAt: null,
@@ -59,14 +59,14 @@ export const useIntakeStore = create<IntakeState>()(
       setCountry: (countryCode) =>
         set((state) => ({
           countryCode,
-          category:
-            state.countryCode === countryCode ? state.category : null,
+          profession:
+            state.countryCode === countryCode ? state.profession : null,
           savedAt: new Date().toISOString(),
         })),
 
-      setCategory: (category) =>
+      setProfession: (profession) =>
         set({
-          category,
+          profession,
           savedAt: new Date().toISOString(),
         }),
 
@@ -111,20 +111,20 @@ export const useIntakeStore = create<IntakeState>()(
       resetDraft: () =>
         set({
           countryCode: null,
-          category: null,
+          profession: null,
           answers: {},
           currentStepIndex: 0,
           savedAt: null,
         }),
     }),
     {
-      name: "igl-visa-intake-draft",
+      name: "igl-visa-intake-v2",
       storage: createJSONStorage(() =>
         typeof window !== "undefined" ? window.localStorage : noopStorage,
       ),
       partialize: (state) => ({
         countryCode: state.countryCode,
-        category: state.category,
+        profession: state.profession,
         answers: state.answers,
         currentStepIndex: state.currentStepIndex,
         savedAt: state.savedAt,

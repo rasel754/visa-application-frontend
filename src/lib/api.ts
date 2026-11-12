@@ -2,20 +2,46 @@ import { ERROR_MESSAGES } from "./error-messages";
 import {
   AdminStats,
   AdminUser,
-  CategoryForm,
+  BlockedPhoneItem,
   CountrySummary,
   FormAnswers,
   IntakeLinkItem,
   LinkResolution,
+  OtpSendResponse,
+  OtpStats,
+  OtpVerifyResponse,
+  PaginatedOtpLogs,
   PaginatedSubmissions,
+  ProfessionKey,
   SubmissionDetail,
   SubmissionStatus,
   SubmitSuccessPayload,
   UploadedDocumentEntry,
+  VisitForm,
 } from "./types";
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+export const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api"
+).replace(/\/+$/, "");
+
+function getBaseUrlForPath(path: string): string {
+  const isAdminOrAuth = path.startsWith("/auth/") || path.startsWith("/admin/");
+  if (
+    isAdminOrAuth &&
+    typeof window !== "undefined" &&
+    /^https?:\/\//i.test(API_BASE_URL)
+  ) {
+    try {
+      const apiHostname = new URL(API_BASE_URL).hostname;
+      if (apiHostname !== window.location.hostname) {
+        return "/api";
+      }
+    } catch {
+      // Keep API_BASE_URL fallback
+    }
+  }
+  return API_BASE_URL;
+}
 
 export class ApiRequestError extends Error {
   public readonly status: number;
@@ -54,7 +80,7 @@ async function request<T>(
 
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
+    response = await fetch(`${getBaseUrlForPath(path)}${path}`, {
       ...init,
       headers,
       credentials: "include",
@@ -106,21 +132,34 @@ export const api = {
     return request<CountrySummary[]>("/forms/countries");
   },
 
-  fetchCategoryForm(countryCode: string, category: string): Promise<CategoryForm> {
-    return request<CategoryForm>(
-      `/forms/${encodeURIComponent(countryCode)}/${encodeURIComponent(category)}`,
-    );
+  fetchVisitForm(countryCode: string): Promise<VisitForm> {
+    return request<VisitForm>(`/forms/${encodeURIComponent(countryCode)}`);
   },
 
   resolveIntakeLink(token: string): Promise<LinkResolution> {
     return request<LinkResolution>(`/links/${encodeURIComponent(token)}`);
   },
 
+  sendOtp(phone: string): Promise<OtpSendResponse> {
+    return request<OtpSendResponse>("/otp/send", {
+      method: "POST",
+      body: JSON.stringify({ phone }),
+    });
+  },
+
+  verifyOtp(phone: string, code: string): Promise<OtpVerifyResponse> {
+    return request<OtpVerifyResponse>("/otp/verify", {
+      method: "POST",
+      body: JSON.stringify({ phone, code }),
+    });
+  },
+
   submitApplication(payload: {
     countryCode: string;
-    category: string;
+    profession: ProfessionKey;
     answers: FormAnswers;
     intakeToken?: string;
+    otpToken: string;
     files: Record<string, UploadedDocumentEntry>;
   }): Promise<SubmitSuccessPayload> {
     const formData = new FormData();
@@ -128,8 +167,9 @@ export const api = {
       "data",
       JSON.stringify({
         countryCode: payload.countryCode,
-        category: payload.category,
+        profession: payload.profession,
         answers: payload.answers,
+        otpToken: payload.otpToken,
         ...(payload.intakeToken ? { intakeToken: payload.intakeToken } : {}),
       }),
     );
@@ -142,6 +182,9 @@ export const api = {
       "/submissions",
       {
         method: "POST",
+        headers: {
+          "x-otp-token": payload.otpToken,
+        },
         body: formData,
       },
       { isUpload: true },
@@ -186,7 +229,7 @@ export const api = {
   fetchAdminSubmissions(params: {
     search?: string;
     country?: string;
-    category?: string;
+    profession?: string;
     status?: string;
     from?: string;
     to?: string;
@@ -196,7 +239,7 @@ export const api = {
     const qs = new URLSearchParams();
     if (params.search) qs.set("search", params.search);
     if (params.country) qs.set("country", params.country);
-    if (params.category) qs.set("category", params.category);
+    if (params.profession) qs.set("profession", params.profession);
     if (params.status) qs.set("status", params.status);
     if (params.from) qs.set("from", params.from);
     if (params.to) qs.set("to", params.to);
@@ -233,15 +276,15 @@ export const api = {
   },
 
   getAdminPdfUrl(id: string): string {
-    return `${API_BASE_URL}/admin/submissions/${encodeURIComponent(id)}/pdf`;
+    return `${getBaseUrlForPath("/admin/")}/admin/submissions/${encodeURIComponent(id)}/pdf`;
   },
 
   getAdminZipUrl(id: string): string {
-    return `${API_BASE_URL}/admin/submissions/${encodeURIComponent(id)}/archive.zip`;
+    return `${getBaseUrlForPath("/admin/")}/admin/submissions/${encodeURIComponent(id)}/archive.zip`;
   },
 
   getAdminDocumentUrl(id: string, docId: string, inline = false): string {
-    return `${API_BASE_URL}/admin/submissions/${encodeURIComponent(id)}/documents/${encodeURIComponent(docId)}${inline ? "?inline=1" : ""}`;
+    return `${getBaseUrlForPath("/admin/")}/admin/submissions/${encodeURIComponent(id)}/documents/${encodeURIComponent(docId)}${inline ? "?inline=1" : ""}`;
   },
 
   fetchAdminLinks(): Promise<{ items: IntakeLinkItem[] }> {
@@ -250,7 +293,7 @@ export const api = {
 
   createAdminLink(payload: {
     countryCode?: string | null;
-    category?: string | null;
+    profession?: string | null;
     expiresInDays?: number | null;
   }): Promise<IntakeLinkItem> {
     return request<IntakeLinkItem>("/admin/links", {
@@ -264,5 +307,48 @@ export const api = {
       method: "DELETE",
     });
   },
-};
 
+  fetchAdminOtpStats(): Promise<OtpStats> {
+    return request<OtpStats>("/admin/otp-stats");
+  },
+
+  fetchAdminOtpLogs(params: {
+    phone?: string;
+    status?: string;
+    date?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedOtpLogs> {
+    const qs = new URLSearchParams();
+    if (params.phone) qs.set("phone", params.phone);
+    if (params.status) qs.set("status", params.status);
+    if (params.date) qs.set("date", params.date);
+    if (params.page) qs.set("page", String(params.page));
+    if (params.limit) qs.set("limit", String(params.limit));
+
+    const query = qs.toString();
+    return request<PaginatedOtpLogs>(
+      `/admin/otp-logs${query ? `?${query}` : ""}`,
+    );
+  },
+
+  fetchAdminBlockedPhones(): Promise<{ items: BlockedPhoneItem[] }> {
+    return request<{ items: BlockedPhoneItem[] }>("/admin/blocked-phones");
+  },
+
+  blockPhone(phone: string, reason?: string | null): Promise<BlockedPhoneItem> {
+    return request<BlockedPhoneItem>("/admin/blocked-phones", {
+      method: "POST",
+      body: JSON.stringify({ phone, reason: reason || null }),
+    });
+  },
+
+  unblockPhone(id: string): Promise<{ ok: boolean }> {
+    return request<{ ok: boolean }>(
+      `/admin/blocked-phones/${encodeURIComponent(id)}`,
+      {
+        method: "DELETE",
+      },
+    );
+  },
+};

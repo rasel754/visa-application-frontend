@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface StatCardProps {
   title: string;
-  value: number;
+  value: number | string;
   subtitle?: string;
   icon: LucideIcon;
   accentClass?: string;

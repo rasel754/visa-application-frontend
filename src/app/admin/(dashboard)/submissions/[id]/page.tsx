@@ -36,6 +36,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PrintSheet } from "@/components/admin/PrintSheet";
+import { OtpVerifiedBadge } from "@/components/admin/OtpBadges";
+import { ProfessionBadge } from "@/components/admin/ProfessionBadge";
 import {
   ALL_SUBMISSION_STATUSES,
   StatusBadge,
@@ -48,9 +50,18 @@ import {
 } from "@/hooks/useSubmissions";
 import { ApiRequestError, api } from "@/lib/api";
 import { ERROR_MESSAGES } from "@/lib/error-messages";
-import { getTableColumns } from "@/lib/field-helpers";
+import {
+  formatDateYmdDisplay,
+  formatProfessionLabel,
+  getTableColumns,
+} from "@/lib/field-helpers";
 import { isTableRowNonEmpty } from "@/lib/form-validation";
-import { SubmissionStatus, TableRowValue } from "@/lib/types";
+import {
+  FormDocument,
+  SubmissionDetailSection,
+  SubmissionStatus,
+  TableRowValue,
+} from "@/lib/types";
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -124,6 +135,164 @@ export default function AdminSubmissionDetailPage() {
 
   const uploadedDocKeys = new Set(detail.documents.map((d) => d.documentKey));
 
+  const renderChecklistGrid = (title: string, docs: FormDocument[]) => {
+    if (docs.length === 0) return null;
+    return (
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          {title}
+        </p>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {docs.map((reqDoc) => {
+            const given = uploadedDocKeys.has(reqDoc.key);
+            return (
+              <div
+                key={reqDoc.key}
+                className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+              >
+                <span className="truncate text-slate-800">{reqDoc.label}</span>
+                {given ? (
+                  <Badge className="shrink-0 bg-emerald-100 text-emerald-900 hover:bg-emerald-100">
+                    <CheckCircle2 className="mr-1 h-3 w-3" aria-hidden="true" />
+                    Given
+                  </Badge>
+                ) : (
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 border-slate-200 text-slate-500"
+                  >
+                    <XCircle className="mr-1 h-3 w-3" aria-hidden="true" />
+                    Not given
+                  </Badge>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderSections = (
+    sections: SubmissionDetailSection[],
+    headingLabel?: string,
+  ) => {
+    const visible = sections.filter((group) =>
+      group.fields.some((f) => {
+        const val = detail.answers[f.key];
+        if (f.type === "table") {
+          return (
+            Array.isArray(val) &&
+            (val as TableRowValue[]).some(isTableRowNonEmpty)
+          );
+        }
+        if (typeof val === "number") return Number.isFinite(val);
+        return typeof val === "string" && val.trim().length > 0;
+      }),
+    );
+
+    if (visible.length === 0) return null;
+
+    return (
+      <div className="space-y-4">
+        {headingLabel && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-blue-900">
+              {headingLabel}
+            </h2>
+          </div>
+        )}
+        {visible.map((group) => (
+          <div
+            key={group.section}
+            className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
+          >
+            <div className="border-b border-slate-200 bg-slate-50 px-5 py-3">
+              <h2 className="text-base font-bold text-slate-900">
+                {group.section}
+              </h2>
+            </div>
+
+            <div className="divide-y divide-slate-100 px-5">
+              {group.fields.map((field) => {
+                const val = detail.answers[field.key];
+
+                if (field.type === "table") {
+                  const columns = getTableColumns(field.key);
+                  const rows = Array.isArray(val)
+                    ? (val as TableRowValue[]).filter(isTableRowNonEmpty)
+                    : [];
+
+                  return (
+                    <div key={field.key} className="py-3.5">
+                      <p className="mb-2 text-sm font-semibold text-slate-700">
+                        {field.label}
+                      </p>
+                      {rows.length === 0 ? (
+                        <p className="text-sm text-slate-400">—</p>
+                      ) : (
+                        <div className="overflow-x-auto rounded-lg border border-slate-200">
+                          <table className="w-full text-left text-sm">
+                            <thead className="bg-slate-50 text-xs font-semibold text-slate-700">
+                              <tr>
+                                {columns.map((col) => (
+                                  <th key={col.key} className="px-3 py-2">
+                                    {col.label}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {rows.map((row, idx) => (
+                                <tr key={`${field.key}-row-${idx}`}>
+                                  {columns.map((col) => (
+                                    <td key={col.key} className="px-3 py-2 text-slate-900">
+                                      {row[col.key]?.trim() || "—"}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                const rawDisplay =
+                  typeof val === "number"
+                    ? String(val)
+                    : typeof val === "string" && val.trim()
+                      ? val.trim()
+                      : "";
+                const displayValue = rawDisplay
+                  ? field.type === "date"
+                    ? formatDateYmdDisplay(rawDisplay)
+                    : rawDisplay
+                  : "—";
+
+                return (
+                  <div
+                    key={field.key}
+                    className="flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6"
+                  >
+                    <span className="text-sm font-medium text-slate-600 sm:w-5/12">
+                      {field.label}
+                    </span>
+                    <span className="whitespace-pre-wrap text-sm font-medium text-slate-900 sm:w-7/12">
+                      {displayValue}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <>
       {/* Screen view */}
@@ -174,23 +343,29 @@ export default function AdminSubmissionDetailPage() {
         {/* Summary & Status Control */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-3">
+            <div className="space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2.5">
                 <h1 className="font-mono text-2xl font-extrabold text-blue-900">
                   {detail.reference}
                 </h1>
                 <StatusBadge status={detail.status} />
+                <ProfessionBadge profession={detail.profession} />
               </div>
               <p className="text-base font-semibold text-slate-900">
-                {detail.applicantName} • {detail.countryName} (
-                {detail.category.charAt(0).toUpperCase() + detail.category.slice(1)})
+                {detail.applicantName} • {detail.countryName} (Visit Visa)
               </p>
               <p className="text-sm text-slate-600">{detail.officialVisaName}</p>
-              <p className="text-xs text-slate-500">
-                Submitted: {format(new Date(detail.createdAt), "dd MMM yyyy, HH:mm")} • Phone:{" "}
-                {detail.applicantPhone || "—"}
-                {detail.applicantEmail ? ` • Email: ${detail.applicantEmail}` : ""}
-              </p>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                <span>
+                  Submitted: {format(new Date(detail.createdAt), "dd MMM yyyy, HH:mm")} • Phone:{" "}
+                  {detail.applicantPhone || "—"}
+                </span>
+                <OtpVerifiedBadge
+                  verified={detail.otpVerified}
+                  phone={detail.otpVerifiedPhone}
+                />
+                {detail.applicantEmail && <span>• Email: {detail.applicantEmail}</span>}
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -244,9 +419,19 @@ export default function AdminSubmissionDetailPage() {
                   className="flex flex-col gap-3 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900">
-                      {doc.label}
-                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-slate-900">
+                        {doc.label}
+                      </p>
+                      <Badge
+                        variant="outline"
+                        className="border-slate-200 text-[11px] font-medium text-slate-600"
+                      >
+                        {doc.group === "common"
+                          ? "Common"
+                          : formatProfessionLabel(doc.group)}
+                      </Badge>
+                    </div>
                     <p className="truncate text-xs text-slate-500">
                       {doc.originalName} • {formatFileSize(doc.sizeBytes)}
                     </p>
@@ -276,140 +461,22 @@ export default function AdminSubmissionDetailPage() {
           )}
 
           {/* Full Checklist Status */}
-          <div className="border-t border-slate-200 bg-slate-50/60 px-5 py-3">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Document Checklist
-            </p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {detail.requiredDocuments.map((reqDoc) => {
-                const given = uploadedDocKeys.has(reqDoc.key);
-                return (
-                  <div
-                    key={reqDoc.key}
-                    className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
-                  >
-                    <span className="truncate text-slate-800">{reqDoc.label}</span>
-                    {given ? (
-                      <Badge className="shrink-0 bg-emerald-100 text-emerald-900 hover:bg-emerald-100">
-                        <CheckCircle2 className="mr-1 h-3 w-3" aria-hidden="true" />
-                        Given
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="shrink-0 border-slate-200 text-slate-500"
-                      >
-                        <XCircle className="mr-1 h-3 w-3" aria-hidden="true" />
-                        Not given
-                      </Badge>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+          <div className="space-y-4 border-t border-slate-200 bg-slate-50/60 px-5 py-4">
+            {renderChecklistGrid("Common Document Checklist", detail.commonDocuments)}
+            {renderChecklistGrid(
+              `Additional Document Checklist (${detail.professionLabel})`,
+              detail.additionalDocuments,
+            )}
           </div>
         </div>
 
         {/* Form Answers Grouped by Section */}
-        <div className="space-y-4">
-          {detail.sections.map((group) => {
-            const hasAnyAnswer = group.fields.some((f) => {
-              const val = detail.answers[f.key];
-              if (f.type === "table") {
-                return (
-                  Array.isArray(val) &&
-                  (val as TableRowValue[]).some(isTableRowNonEmpty)
-                );
-              }
-              if (typeof val === "number") return Number.isFinite(val);
-              return typeof val === "string" && val.trim().length > 0;
-            });
-
-            if (!hasAnyAnswer) return null;
-
-            return (
-              <div
-                key={group.section}
-                className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
-              >
-                <div className="border-b border-slate-200 bg-slate-50 px-5 py-3">
-                  <h2 className="text-base font-bold text-slate-900">
-                    {group.section}
-                  </h2>
-                </div>
-
-                <div className="divide-y divide-slate-100 px-5">
-                  {group.fields.map((field) => {
-                    const val = detail.answers[field.key];
-
-                    if (field.type === "table") {
-                      const columns = getTableColumns(field.key);
-                      const rows = Array.isArray(val)
-                        ? (val as TableRowValue[]).filter(isTableRowNonEmpty)
-                        : [];
-
-                      return (
-                        <div key={field.key} className="py-3.5">
-                          <p className="mb-2 text-sm font-semibold text-slate-700">
-                            {field.label}
-                          </p>
-                          {rows.length === 0 ? (
-                            <p className="text-sm text-slate-400">—</p>
-                          ) : (
-                            <div className="overflow-x-auto rounded-lg border border-slate-200">
-                              <table className="w-full text-left text-sm">
-                                <thead className="bg-slate-50 text-xs font-semibold text-slate-700">
-                                  <tr>
-                                    {columns.map((col) => (
-                                      <th key={col.key} className="px-3 py-2">
-                                        {col.label}
-                                      </th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                  {rows.map((row, idx) => (
-                                    <tr key={`${field.key}-row-${idx}`}>
-                                      {columns.map((col) => (
-                                        <td key={col.key} className="px-3 py-2 text-slate-900">
-                                          {row[col.key]?.trim() || "—"}
-                                        </td>
-                                      ))}
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }
-
-                    const displayValue =
-                      typeof val === "number"
-                        ? String(val)
-                        : typeof val === "string" && val.trim()
-                          ? val.trim()
-                          : "—";
-
-                    return (
-                      <div
-                        key={field.key}
-                        className="flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6"
-                      >
-                        <span className="text-sm font-medium text-slate-600 sm:w-5/12">
-                          {field.label}
-                        </span>
-                        <span className="whitespace-pre-wrap text-sm font-medium text-slate-900 sm:w-7/12">
-                          {displayValue}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+        <div className="space-y-6">
+          {renderSections(detail.commonSections)}
+          {renderSections(
+            detail.professionSections,
+            `Profession Details — ${detail.professionLabel}`,
+          )}
         </div>
       </div>
 
@@ -447,4 +514,3 @@ export default function AdminSubmissionDetailPage() {
     </>
   );
 }
-

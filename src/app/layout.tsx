@@ -12,9 +12,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "IGL Visa Help — Online Visa Application Form",
+  title: "IGL Visa Help — Online Visit Visa Application Form",
   description:
-    "Apply for your Student, Business, or Employee visa in simple steps with IGL Visa Help.",
+    "Apply for your Visit / Tourist visa in simple steps with IGL Visa Help.",
 };
 
 export default function RootLayout({

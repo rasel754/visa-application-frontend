@@ -6,6 +6,7 @@ import { Check, Copy, Link2, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Combobox, ComboboxOption } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -23,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ALL_PROFESSIONS } from "@/components/admin/ProfessionBadge";
 import { useCountries } from "@/hooks/useCountries";
 import {
   useAdminLinks,
@@ -31,6 +33,7 @@ import {
 } from "@/hooks/useSubmissions";
 import { ApiRequestError } from "@/lib/api";
 import { ERROR_MESSAGES } from "@/lib/error-messages";
+import { formatProfessionLabel } from "@/lib/field-helpers";
 
 export default function AdminLinksPage() {
   const { data: countries = [] } = useCountries();
@@ -39,16 +42,21 @@ export default function AdminLinksPage() {
   const deleteMutation = useDeleteAdminLink();
 
   const [countryCode, setCountryCode] = useState("");
-  const [category, setCategory] = useState("");
+  const [profession, setProfession] = useState("");
   const [expiresInDays, setExpiresInDays] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const selectedCountry = useMemo(
-    () =>
-      countries.find(
-        (c) => c.country_code.toUpperCase() === countryCode.toUpperCase(),
-      ) ?? null,
-    [countries, countryCode],
+  const countryOptions: ComboboxOption[] = useMemo(
+    () => [
+      { value: "", label: "Client chooses country" },
+      ...countries.map((c) => ({
+        value: c.country_code,
+        label: c.country,
+        hint: c.region,
+        keywords: [c.country_code, c.region],
+      })),
+    ],
+    [countries],
   );
 
   const buildShareUrl = (token: string): string => {
@@ -84,12 +92,12 @@ export default function AdminLinksPage() {
     try {
       const created = await createMutation.mutateAsync({
         countryCode: countryCode || null,
-        category: countryCode && category ? category : null,
+        profession: profession || null,
         expiresInDays: parsedDays,
       });
       toast.success("Unique intake link created.");
       setCountryCode("");
-      setCategory("");
+      setProfession("");
       setExpiresInDays("");
       await handleCopy(created.id, created.token);
     } catch (err: unknown) {
@@ -115,7 +123,7 @@ export default function AdminLinksPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900">Unique Client Links</h1>
         <p className="text-sm text-slate-600">
-          Create a one-time application link for a client (optionally pre-selecting their country and visa type).
+          Create a one-time visit visa application link for a client (optionally pre-selecting their country and profession).
         </p>
       </div>
 
@@ -134,50 +142,33 @@ export default function AdminLinksPage() {
             <Label className="text-sm font-medium text-slate-700">
               Country (Optional)
             </Label>
-            <Select
-              value={countryCode || "NONE"}
-              onValueChange={(val) => {
-                setCountryCode(val === "NONE" ? "" : val);
-                setCategory("");
-              }}
-            >
-              <SelectTrigger className="h-11 w-full">
-                <SelectValue placeholder="Client chooses country" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="NONE">Client chooses country</SelectItem>
-                {countries.map((c) => (
-                  <SelectItem key={c.country_code} value={c.country_code}>
-                    {c.country}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              options={countryOptions}
+              value={countryCode}
+              placeholder="Client chooses country"
+              searchPlaceholder="Search country..."
+              emptyText="No country found."
+              onValueChange={(val) => setCountryCode(val)}
+              className="h-11 text-sm"
+            />
           </div>
 
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-slate-700">
-              Visa Type (Optional)
+              Profession (Optional)
             </Label>
             <Select
-              disabled={!selectedCountry}
-              value={category || "NONE"}
-              onValueChange={(val) => setCategory(val === "NONE" ? "" : val)}
+              value={profession || "NONE"}
+              onValueChange={(val) => setProfession(val === "NONE" ? "" : val)}
             >
               <SelectTrigger className="h-11 w-full">
-                <SelectValue
-                  placeholder={
-                    selectedCountry
-                      ? "Client chooses visa type"
-                      : "Pick a country first"
-                  }
-                />
+                <SelectValue placeholder="Client chooses profession" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="NONE">Client chooses visa type</SelectItem>
-                {(selectedCountry?.categories ?? []).map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                <SelectItem value="NONE">Client chooses profession</SelectItem>
+                {ALL_PROFESSIONS.map((prof) => (
+                  <SelectItem key={prof} value={prof}>
+                    {formatProfessionLabel(prof)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -228,7 +219,7 @@ export default function AdminLinksPage() {
             <TableHeader>
               <TableRow className="bg-slate-50">
                 <TableHead>Created</TableHead>
-                <TableHead>Preset Country / Type</TableHead>
+                <TableHead>Preset Country / Profession</TableHead>
                 <TableHead>Link</TableHead>
                 <TableHead>Expires</TableHead>
                 <TableHead>Status</TableHead>
@@ -249,14 +240,15 @@ export default function AdminLinksPage() {
                       {format(new Date(link.createdAt), "dd MMM yyyy, HH:mm")}
                     </TableCell>
                     <TableCell className="text-sm text-slate-900">
-                      {link.countryName ? (
+                      {link.countryName || link.profession ? (
                         <div>
-                          <p className="font-medium">{link.countryName}</p>
+                          <p className="font-medium">
+                            {link.countryName ?? "Any country"}
+                          </p>
                           <p className="text-xs text-slate-500">
-                            {link.category
-                              ? link.category.charAt(0).toUpperCase() +
-                                link.category.slice(1)
-                              : "Any visa type"}
+                            {link.profession
+                              ? formatProfessionLabel(link.profession)
+                              : "Any profession"}
                           </p>
                         </div>
                       ) : (
@@ -331,4 +323,3 @@ export default function AdminLinksPage() {
     </div>
   );
 }
-

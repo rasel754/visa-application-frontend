@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, Loader2, ShieldCheck } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 import { z } from "zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,11 @@ import { Label } from "@/components/ui/label";
 import { useAdminMe } from "@/hooks/useSubmissions";
 import { ApiRequestError, api } from "@/lib/api";
 import { ERROR_MESSAGES } from "@/lib/error-messages";
+
+const DEFAULT_ADMIN_EMAIL =
+  process.env.NEXT_PUBLIC_ADMIN_LOGIN_EMAIL ?? "";
+const DEFAULT_ADMIN_PASSWORD =
+  process.env.NEXT_PUBLIC_ADMIN_LOGIN_PASSWORD ?? "";
 
 const loginFormSchema = z.object({
   email: z.string().trim().email(ERROR_MESSAGES.wrongEmail),
@@ -26,6 +31,7 @@ export default function AdminLoginPage() {
   const queryClient = useQueryClient();
   const { data: meData, isLoading: checkingAuth } = useAdminMe();
   const [serverError, setServerError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -33,7 +39,10 @@ export default function AdminLoginPage() {
     formState: { errors, isSubmitting },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: {
+      email: DEFAULT_ADMIN_EMAIL,
+      password: DEFAULT_ADMIN_PASSWORD,
+    },
   });
 
   useEffect(() => {
@@ -110,14 +119,28 @@ export default function AdminLoginPage() {
             <Label htmlFor="admin-password" className="text-sm font-semibold text-slate-800">
               Password
             </Label>
-            <Input
-              id="admin-password"
-              type="password"
-              autoComplete="current-password"
-              placeholder="Write your password"
-              className="h-12 text-base"
-              {...register("password")}
-            />
+            <div className="relative">
+              <Input
+                id="admin-password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder="Write your password"
+                className="h-12 pr-11 text-base"
+                {...register("password")}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-500 hover:text-slate-800"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" aria-hidden="true" />
+                ) : (
+                  <Eye className="h-5 w-5" aria-hidden="true" />
+                )}
+              </button>
+            </div>
             {errors.password && (
               <p className="text-sm text-red-600">{errors.password.message}</p>
             )}
@@ -134,7 +157,7 @@ export default function AdminLoginPage() {
                 Logging in...
               </>
             ) : (
-              "Log In"
+              "Login"
             )}
           </Button>
         </form>
@@ -142,4 +165,3 @@ export default function AdminLoginPage() {
     </div>
   );
 }
-

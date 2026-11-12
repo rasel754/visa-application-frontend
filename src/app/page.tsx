@@ -21,9 +21,9 @@ const STEPS = [
   },
   {
     number: "2",
-    title: "Choose Visa Type",
-    subtitle: "Student, Business, or Employee.",
-    bangla: "ভিসার ধরন বেছে নিন",
+    title: "Choose Your Profession",
+    subtitle: "Visit Visa — Student, Businessman, or Employee.",
+    bangla: "ভিজিট ভিসার জন্য আপনার পেশা বেছে নিন",
     icon: FileCheck2,
   },
   {
@@ -35,9 +35,9 @@ const STEPS = [
   },
   {
     number: "4",
-    title: "Submit & Download PDF",
-    subtitle: "Get your form number and PDF right away.",
-    bangla: "জমা দিন ও সাথে সাথে PDF ডাউনলোড করুন",
+    title: "Verify Mobile & Download PDF",
+    subtitle: "Confirm via OTP and get your form number right away.",
+    bangla: "মোবাইল যাচাই করে জমা দিন ও PDF ডাউনলোড করুন",
     icon: Download,
   },
 ];

@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Loader2, RotateCcw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Combobox, ComboboxOption } from "@/components/ui/combobox";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -12,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ALL_PROFESSIONS } from "@/components/admin/ProfessionBadge";
 import {
   ALL_SUBMISSION_STATUSES,
   getStatusLabel,
@@ -19,11 +22,12 @@ import {
 import { SubmissionsTable } from "@/components/admin/SubmissionsTable";
 import { useCountries } from "@/hooks/useCountries";
 import { useSubmissions } from "@/hooks/useSubmissions";
+import { formatProfessionLabel } from "@/lib/field-helpers";
 
 export default function AdminSubmissionsPage() {
   const [search, setSearch] = useState("");
   const [country, setCountry] = useState("");
-  const [category, setCategory] = useState("");
+  const [profession, setProfession] = useState("");
   const [status, setStatus] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -31,20 +35,23 @@ export default function AdminSubmissionsPage() {
 
   const { data: countries = [] } = useCountries();
 
-  const availableCategories = useMemo(() => {
-    const set = new Set<string>();
-    for (const c of countries) {
-      for (const cat of c.categories) {
-        set.add(cat);
-      }
-    }
-    return Array.from(set);
-  }, [countries]);
+  const countryOptions: ComboboxOption[] = useMemo(
+    () => [
+      { value: "", label: "All countries" },
+      ...countries.map((c) => ({
+        value: c.country_code,
+        label: c.country,
+        hint: c.region,
+        keywords: [c.country_code, c.region],
+      })),
+    ],
+    [countries],
+  );
 
   const { data, isLoading } = useSubmissions({
     search: search.trim() || undefined,
     country: country || undefined,
-    category: category || undefined,
+    profession: profession || undefined,
     status: status || undefined,
     from: from || undefined,
     to: to || undefined,
@@ -55,7 +62,7 @@ export default function AdminSubmissionsPage() {
   const resetFilters = () => {
     setSearch("");
     setCountry("");
-    setCategory("");
+    setProfession("");
     setStatus("");
     setFrom("");
     setTo("");
@@ -63,7 +70,7 @@ export default function AdminSubmissionsPage() {
   };
 
   const hasFilters = Boolean(
-    search || country || category || status || from || to,
+    search || country || profession || status || from || to,
   );
 
   return (
@@ -72,7 +79,7 @@ export default function AdminSubmissionsPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Submissions</h1>
           <p className="text-sm text-slate-600">
-            Search, filter, review, and download client visa applications.
+            Search, filter, review, and download client visit visa applications.
           </p>
         </div>
         {data && (
@@ -112,46 +119,39 @@ export default function AdminSubmissionsPage() {
             <Label className="text-xs font-semibold text-slate-600">
               Country
             </Label>
-            <Select
-              value={country || "ALL"}
+            <Combobox
+              options={countryOptions}
+              value={country}
+              placeholder="All countries"
+              searchPlaceholder="Search country..."
+              emptyText="No country found."
               onValueChange={(val) => {
-                setCountry(val === "ALL" ? "" : val);
+                setCountry(val);
                 setPage(1);
               }}
-            >
-              <SelectTrigger className="h-10 w-full">
-                <SelectValue placeholder="All countries" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">All countries</SelectItem>
-                {countries.map((c) => (
-                  <SelectItem key={c.country_code} value={c.country_code}>
-                    {c.country}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              className="h-10 text-sm"
+            />
           </div>
 
           <div className="space-y-1">
             <Label className="text-xs font-semibold text-slate-600">
-              Visa Type
+              Profession
             </Label>
             <Select
-              value={category || "ALL"}
+              value={profession || "ALL"}
               onValueChange={(val) => {
-                setCategory(val === "ALL" ? "" : val);
+                setProfession(val === "ALL" ? "" : val);
                 setPage(1);
               }}
             >
               <SelectTrigger className="h-10 w-full">
-                <SelectValue placeholder="All types" />
+                <SelectValue placeholder="All professions" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">All types</SelectItem>
-                {availableCategories.map((cat) => (
-                  <SelectItem key={cat} value={cat}>
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                <SelectItem value="ALL">All professions</SelectItem>
+                {ALL_PROFESSIONS.map((prof) => (
+                  <SelectItem key={prof} value={prof}>
+                    {formatProfessionLabel(prof)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -203,30 +203,34 @@ export default function AdminSubmissionsPage() {
             <Label htmlFor="filter-from" className="text-xs font-semibold text-slate-600">
               From Date
             </Label>
-            <Input
+            <DatePicker
               id="filter-from"
-              type="date"
               value={from}
-              onChange={(e) => {
-                setFrom(e.target.value);
+              mode="past-or-today"
+              allowClear
+              placeholder="From date"
+              onChange={(val) => {
+                setFrom(val);
                 setPage(1);
               }}
-              className="h-10"
+              className="h-10 text-sm"
             />
           </div>
           <div className="space-y-1">
             <Label htmlFor="filter-to" className="text-xs font-semibold text-slate-600">
               To Date
             </Label>
-            <Input
+            <DatePicker
               id="filter-to"
-              type="date"
               value={to}
-              onChange={(e) => {
-                setTo(e.target.value);
+              mode="past-or-today"
+              allowClear
+              placeholder="To date"
+              onChange={(val) => {
+                setTo(val);
                 setPage(1);
               }}
-              className="h-10"
+              className="h-10 text-sm"
             />
           </div>
         </div>
@@ -274,4 +278,3 @@ export default function AdminSubmissionsPage() {
     </div>
   );
 }
-

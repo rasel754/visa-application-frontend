@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getBanglaError } from "@/lib/error-messages";
 import { validateClientPickedFile } from "@/lib/form-validation";
 import { FormDocument, UploadedDocumentEntry } from "@/lib/types";
 
@@ -206,7 +207,12 @@ export function DocumentUploadCard({
           className="mt-3 flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700"
         >
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>{error}</span>
+          <div className="space-y-0.5">
+            <p>{error}</p>
+            {getBanglaError(error) && (
+              <p className="text-xs font-normal text-red-800">{getBanglaError(error)}</p>
+            )}
+          </div>
         </div>
       )}
     </div>
