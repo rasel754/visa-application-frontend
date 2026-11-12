@@ -178,7 +178,7 @@ const EN_STRINGS: UiStrings = {
   home: {
     heroTitle: "Apply for your visa in a few easy steps",
     heroSubtitle:
-      "Fill out your visa form online on your phone or computer, upload your papers, and download your PDF copy right away.",
+      "Fill out your visa form online on your phone or computer and download your PDF copy right away.",
     startApplication: "Start Application",
     howItWorksTitle: "How it works",
     steps: [
@@ -194,8 +194,8 @@ const EN_STRINGS: UiStrings = {
       },
       {
         number: "3",
-        title: "Fill the Form & Upload Documents",
-        subtitle: "Write your details and attach clear photos or PDFs.",
+        title: "Fill Out the Form",
+        subtitle: "Enter your general, work, education, family, and travel details.",
       },
       {
         number: "4",
@@ -287,7 +287,7 @@ const EN_STRINGS: UiStrings = {
     subtitle:
       'Look through everything carefully. Tap "Edit" on any box to fix it right here, then tap "Send OTP & Submit".',
     fixAttentionTitle:
-      "Some boxes or papers still need your attention before you can send:",
+      "Some boxes still need your attention before you can send:",
     selectedApplication: "Selected Application",
     country: "Country",
     visaType: "Visa Type",
@@ -363,7 +363,7 @@ const BN_STRINGS: UiStrings = {
   home: {
     heroTitle: "কয়েকটি সহজ ধাপে আপনার ভিসার আবেদন করুন",
     heroSubtitle:
-      "আপনার মোবাইল বা কম্পিউটার থেকে অনলাইনে ভিসা ফর্ম পূরণ করুন, প্রয়োজনীয় কাগজপত্র আপলোড করুন এবং সাথে সাথেই পিডিএফ (PDF) কপি ডাউনলোড করুন।",
+      "আপনার মোবাইল বা কম্পিউটার থেকে অনলাইনে ভিসা ফর্ম পূরণ করুন এবং সাথে সাথেই পিডিএফ (PDF) কপি ডাউনলোড করুন।",
     startApplication: "আবেদন শুরু করুন",
     howItWorksTitle: "কীভাবে আবেদন করবেন",
     steps: [
@@ -379,8 +379,8 @@ const BN_STRINGS: UiStrings = {
       },
       {
         number: "৩",
-        title: "ফর্ম পূরণ ও কাগজপত্র আপলোড",
-        subtitle: "সঠিক তথ্য লিখুন এবং কাগজপত্রের স্পষ্ট ছবি বা PDF যুক্ত করুন।",
+        title: "আবেদন ফর্ম পূরণ করুন",
+        subtitle: "সাধারণ, কর্মসংস্থান, শিক্ষা, পরিবার ও ভ্রমণের তথ্য লিখুন।",
       },
       {
         number: "৪",
@@ -471,9 +471,9 @@ const BN_STRINGS: UiStrings = {
   review: {
     title: "জমা দেওয়ার আগে আপনার সব তথ্য যাচাই করুন",
     subtitle:
-      'সব তথ্য ও কাগজপত্র ভালোভাবে মিলিয়ে নিন। কোনো অংশ ঠিক করতে চাইলে সেই অংশের "সম্পাদনা করুন" বাটনে চাপ দিয়ে এখানেই সংশোধন করুন, এরপর "OTP পাঠান ও আবেদন জমা দিন" চাপুন।',
+      'সব তথ্য ভালোভাবে মিলিয়ে নিন। কোনো অংশ ঠিক করতে চাইলে সেই অংশের "সম্পাদনা করুন" বাটনে চাপ দিয়ে এখানেই সংশোধন করুন, এরপর "OTP পাঠান ও আবেদন জমা দিন" চাপুন।',
     fixAttentionTitle:
-      "আবেদন জমা দেওয়ার আগে নিচের তথ্য বা কাগজপত্রগুলো ঠিক করা প্রয়োজন:",
+      "আবেদন জমা দেওয়ার আগে নিচের ঘরগুলো ঠিক করা প্রয়োজন:",
     selectedApplication: "নির্বাচিত আবেদনের বিবরণ",
     country: "গন্তব্য দেশ",
     visaType: "ভিসার ধরন",

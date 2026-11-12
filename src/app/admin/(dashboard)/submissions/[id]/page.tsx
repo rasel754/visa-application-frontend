@@ -278,7 +278,9 @@ export default function AdminSubmissionDetailPage() {
                     className="flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6"
                   >
                     <span className="text-sm font-medium text-slate-600 sm:w-5/12">
-                      {field.label}
+                      {field.subgroup
+                        ? `${field.subgroup} — ${field.label}`
+                        : field.label}
                     </span>
                     <span className="whitespace-pre-wrap text-sm font-medium text-slate-900 sm:w-7/12">
                       {displayValue}
@@ -399,84 +401,84 @@ export default function AdminSubmissionDetailPage() {
         </div>
 
         {/* Uploaded Documents */}
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 bg-slate-50 px-5 py-3">
-            <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
-              <FileText className="h-4 w-4 text-blue-700" aria-hidden="true" />
-              Uploaded Documents ({detail.documents.length})
-            </h2>
-          </div>
-
-          {detail.documents.length === 0 ? (
-            <div className="p-5 text-sm text-slate-500">
-              No files uploaded with this submission.
+        {(detail.documents.length > 0 ||
+          detail.commonDocuments.length > 0 ||
+          detail.additionalDocuments.length > 0) && (
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 bg-slate-50 px-5 py-3">
+              <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
+                <FileText className="h-4 w-4 text-blue-700" aria-hidden="true" />
+                Uploaded Documents ({detail.documents.length})
+              </h2>
             </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {detail.documents.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="flex flex-col gap-3 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-slate-900">
-                        {doc.label}
+
+            {detail.documents.length === 0 ? (
+              <div className="p-5 text-sm text-slate-500">
+                No files uploaded with this submission.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {detail.documents.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="flex flex-col gap-3 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-slate-900">
+                          {doc.label}
+                        </p>
+                        <Badge
+                          variant="outline"
+                          className="border-slate-200 text-[11px] font-medium text-slate-600"
+                        >
+                          {doc.group === "common"
+                            ? "Common"
+                            : formatProfessionLabel(doc.group)}
+                        </Badge>
+                      </div>
+                      <p className="truncate text-xs text-slate-500">
+                        {doc.originalName} • {formatFileSize(doc.sizeBytes)}
                       </p>
-                      <Badge
-                        variant="outline"
-                        className="border-slate-200 text-[11px] font-medium text-slate-600"
-                      >
-                        {doc.group === "common"
-                          ? "Common"
-                          : formatProfessionLabel(doc.group)}
-                      </Badge>
                     </div>
-                    <p className="truncate text-xs text-slate-500">
-                      {doc.originalName} • {formatFileSize(doc.sizeBytes)}
-                    </p>
-                  </div>
 
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Button asChild variant="outline" size="sm" className="h-9">
-                      <a
-                        href={api.getAdminDocumentUrl(detail.id, doc.id, true)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <ExternalLink className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                        View
-                      </a>
-                    </Button>
-                    <Button asChild variant="outline" size="sm" className="h-9">
-                      <a href={api.getAdminDocumentUrl(detail.id, doc.id, false)}>
-                        <Download className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
-                        Download
-                      </a>
-                    </Button>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Button asChild variant="outline" size="sm" className="h-9">
+                        <a
+                          href={api.getAdminDocumentUrl(detail.id, doc.id, true)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <ExternalLink className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                          View
+                        </a>
+                      </Button>
+                      <Button asChild variant="outline" size="sm" className="h-9">
+                        <a href={api.getAdminDocumentUrl(detail.id, doc.id, false)}>
+                          <Download className="mr-1.5 h-3.5 w-3.5" aria-hidden="true" />
+                          Download
+                        </a>
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Full Checklist Status */}
-          <div className="space-y-4 border-t border-slate-200 bg-slate-50/60 px-5 py-4">
-            {renderChecklistGrid("Common Document Checklist", detail.commonDocuments)}
-            {renderChecklistGrid(
-              `Additional Document Checklist (${detail.professionLabel})`,
-              detail.additionalDocuments,
+                ))}
+              </div>
             )}
+
+            {/* Full Checklist Status */}
+            <div className="space-y-4 border-t border-slate-200 bg-slate-50/60 px-5 py-4">
+              {renderChecklistGrid("Common Document Checklist", detail.commonDocuments)}
+              {renderChecklistGrid(
+                `Additional Document Checklist (${detail.professionLabel})`,
+                detail.additionalDocuments,
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Form Answers Grouped by Section */}
         <div className="space-y-6">
-          {renderSections(detail.commonSections)}
-          {renderSections(
-            detail.professionSections,
-            `Profession Details — ${detail.professionLabel}`,
-          )}
+          {renderSections(detail.sections)}
         </div>
       </div>
 

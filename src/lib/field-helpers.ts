@@ -13,6 +13,7 @@ import {
   SECTION_INTROS_BN,
   SECTION_NAMES_BN,
   SELECT_OPTION_LABELS_BN,
+  SUBGROUP_NAMES_BN,
   VISA_NAMES_BN,
   localizeOfficialForm,
   toBanglaDigits,
@@ -24,6 +25,15 @@ import {
   ProfessionKey,
   SectionGroup,
 } from "./types";
+
+export const SECTION_DISPLAY_ORDER = [
+  "General Information",
+  "Work Information",
+  "Work/Study Information",
+  "Educational Information",
+  "Family Information",
+  "Travel Information",
+] as const;
 
 export function groupFieldsBySection(
   fields: FormField[],
@@ -43,6 +53,26 @@ export function groupFieldsBySection(
     group,
     fields: sectionFields,
   }));
+}
+
+export function buildOrderedSections(
+  commonFields: FormField[],
+  profileFields: FormField[],
+  profession: ProfessionKey,
+): SectionGroup[] {
+  const combined = [
+    ...groupFieldsBySection(commonFields, "common"),
+    ...groupFieldsBySection(profileFields, profession),
+  ];
+  const orderList: readonly string[] = SECTION_DISPLAY_ORDER;
+  return combined.sort((a, b) => {
+    const idxA = orderList.indexOf(a.section);
+    const idxB = orderList.indexOf(b.section);
+    if (idxA === -1 && idxB === -1) return 0;
+    if (idxA === -1) return 1;
+    if (idxB === -1) return -1;
+    return idxA - idxB;
+  });
 }
 
 export function formatDateYmdDisplay(
@@ -261,6 +291,34 @@ export function getLocalizedFieldLabel(
   return field.label;
 }
 
+export function getLocalizedSubgroupName(
+  subgroup: string,
+  language: FormLanguage = "en",
+): string {
+  if (language === "bn") {
+    return SUBGROUP_NAMES_BN[subgroup] ?? subgroup;
+  }
+  if (subgroup === "Spouse") {
+    return "Spouse (Only if married)";
+  }
+  return subgroup;
+}
+
+export function getLocalizedFieldDisplayLabel(
+  field: Pick<FormField, "key" | "label" | "subgroup">,
+  language: FormLanguage = "en",
+): string {
+  const baseLabel = getLocalizedFieldLabel(field, language);
+  if (field.subgroup) {
+    const subLabel =
+      language === "bn"
+        ? (SUBGROUP_NAMES_BN[field.subgroup] ?? field.subgroup)
+        : field.subgroup;
+    return `${subLabel} — ${baseLabel}`;
+  }
+  return baseLabel;
+}
+
 export function getFieldPlaceholder(
   field: FormField,
   language: FormLanguage = "en",
@@ -274,6 +332,9 @@ export function getFieldPlaceholder(
 
   const key = field.key.toLowerCase();
 
+  if (key === "applicant_name") {
+    return "Write your full name as in your passport";
+  }
   if (key === "passport_number") {
     return "Example: A01234567";
   }
@@ -288,6 +349,24 @@ export function getFieldPlaceholder(
   }
   if (key === "tin_number") {
     return "Example: 123456789012 (12 digits)";
+  }
+  if (key.endsWith("_years")) {
+    return "Example: 2018 - 2022";
+  }
+  if (key.endsWith("_institution")) {
+    return "Write school, college, or university name";
+  }
+  if (key.endsWith("_major")) {
+    return "Example: Science / Business / CSE";
+  }
+  if (key.endsWith("_nationality")) {
+    return "Example: BANGLADESHI";
+  }
+  if (key === "approved_leave_dates") {
+    return "Example: 10 DEC 2026 TO 24 DEC 2026";
+  }
+  if (key === "monthly_salary") {
+    return "Example: 50000";
   }
   if (key === "surname" || key === "given_names" || key === "surname_at_birth") {
     return "Write your full name as in your passport";
@@ -311,9 +390,11 @@ export function getFieldPlaceholder(
     key.includes("institution_name") ||
     key.includes("employer_name") ||
     key.includes("business_name") ||
+    key.includes("supervisor_name") ||
     key === "fathers_name" ||
     key === "mothers_name" ||
-    key === "spouse_name"
+    key === "spouse_name" ||
+    key.startsWith("child_")
   ) {
     return "Write the full name";
   }
@@ -374,8 +455,8 @@ export function getFieldHelpText(
     return "Tap to open calendar and choose the date.";
   }
 
-  if (key === "surname" || key === "given_names" || key === "surname_at_birth") {
-    return "Copy the exact English spelling from your passport (letters only, max 40 characters, auto-CAPITALIZED).";
+  if (key === "applicant_name" || key === "surname" || key === "given_names" || key === "surname_at_birth") {
+    return "Copy the exact English spelling from your passport (letters only, auto-CAPITALIZED).";
   }
   if (
     key === "place_of_birth" ||
@@ -518,12 +599,32 @@ export interface SectionIntro {
 }
 
 const SECTION_INTROS: Record<string, SectionIntro> = {
+  "General Information": {
+    english: "Write your full name, passport number, active Bangladeshi mobile number, and current home address.",
+    bangla: SECTION_INTROS_BN["General Information"],
+  },
+  "Work Information": {
+    english: "Write your employment and employer details carefully.",
+    bangla: SECTION_INTROS_BN["Work Information"],
+  },
+  "Work/Study Information": {
+    english: "Write details about the school, college, or university you currently attend.",
+    bangla: SECTION_INTROS_BN["Work/Study Information"],
+  },
+  "Educational Information": {
+    english: "Write your education history. Last Education is required; High School and College are optional.",
+    bangla: SECTION_INTROS_BN["Educational Information"],
+  },
+  "Travel Information": {
+    english: "Tell us which city you will stay in, your travel dates, and maximum days to stay.",
+    bangla: SECTION_INTROS_BN["Travel Information"],
+  },
   "Personal Information": {
     english: "Write your basic details carefully as shown on your passport.",
     bangla: SECTION_INTROS_BN["Personal Information"],
   },
   "Family Information": {
-    english: "Write your parents' names and spouse details (if married).",
+    english: "Write your parents' details (required), and spouse or children details if applicable.",
     bangla: SECTION_INTROS_BN["Family Information"],
   },
   Passport: {

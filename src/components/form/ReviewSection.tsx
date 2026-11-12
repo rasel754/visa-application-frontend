@@ -16,15 +16,15 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DynamicField } from "@/components/form/DynamicField";
 import { ErrorItem, FriendlyError } from "@/components/form/FriendlyError";
+import { SectionFieldsView } from "@/components/form/SectionFieldsView";
 import { localizeErrorMessage } from "@/lib/error-messages";
 import {
   formatDateYmdDisplay,
   formatProfessionLabel,
   getLocalizedCountryName,
   getLocalizedDocumentLabel,
-  getLocalizedFieldLabel,
+  getLocalizedFieldDisplayLabel,
   getLocalizedSectionName,
   getLocalizedSelectOptionLabel,
   getLocalizedVisaName,
@@ -464,19 +464,13 @@ export function ReviewSection({
 
               {isEditing ? (
                 <div className="space-y-5 p-4 sm:p-5">
-                  <div className="space-y-5">
-                    {group.fields.map((field) => (
-                      <DynamicField
-                        key={field.key}
-                        field={field}
-                        value={mergedAnswers[field.key]}
-                        allAnswers={mergedAnswers}
-                        error={draftErrors[field.key]}
-                        onChange={(val) => handleDraftFieldChange(group, field, val)}
-                        onBlurValidate={() => handleDraftFieldBlur(field)}
-                      />
-                    ))}
-                  </div>
+                  <SectionFieldsView
+                    fields={group.fields}
+                    answers={mergedAnswers}
+                    fieldErrors={draftErrors}
+                    onChange={(field, val) => handleDraftFieldChange(group, field, val)}
+                    onBlurValidate={handleDraftFieldBlur}
+                  />
 
                   <div className="flex flex-col-reverse gap-2.5 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
                     <Button
@@ -503,7 +497,7 @@ export function ReviewSection({
                   {group.fields.map((field) => {
                     const val = answers[field.key];
                     const hasError = errorItems.some((e) => e.key === field.key);
-                    const localizedFieldLabel = getLocalizedFieldLabel(
+                    const localizedFieldLabel = getLocalizedFieldDisplayLabel(
                       field,
                       language,
                     );
@@ -602,37 +596,43 @@ export function ReviewSection({
         })}
 
         {/* Documents summary with inline Replace / Remove / Upload */}
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
-            <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
-              <FileText className="h-4 w-4 text-blue-700" aria-hidden="true" />
-              {t.review.documentsTitle}
-            </h3>
-            <span className="text-xs text-slate-500">
-              {t.review.fileFormatHint}
-            </span>
-          </div>
-
-          <div className="px-4 py-2">
-            <p className="py-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-              {t.review.commonDocsLabel}
-            </p>
-            <div className="divide-y divide-slate-100">
-              {renderDocRows(commonDocuments)}
+        {(commonDocuments.length > 0 || additionalDocuments.length > 0) && (
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
+              <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
+                <FileText className="h-4 w-4 text-blue-700" aria-hidden="true" />
+                {t.review.documentsTitle}
+              </h3>
+              <span className="text-xs text-slate-500">
+                {t.review.fileFormatHint}
+              </span>
             </div>
 
-            {additionalDocuments.length > 0 && (
-              <>
-                <p className="mt-3 border-t border-slate-200 pt-3 pb-2 text-xs font-bold uppercase tracking-wide text-blue-700">
-                  {t.review.additionalDocsLabel(professionLabel)}
-                </p>
-                <div className="divide-y divide-slate-100">
-                  {renderDocRows(additionalDocuments)}
-                </div>
-              </>
-            )}
+            <div className="px-4 py-2">
+              {commonDocuments.length > 0 && (
+                <>
+                  <p className="py-2 text-xs font-bold uppercase tracking-wide text-slate-500">
+                    {t.review.commonDocsLabel}
+                  </p>
+                  <div className="divide-y divide-slate-100">
+                    {renderDocRows(commonDocuments)}
+                  </div>
+                </>
+              )}
+
+              {additionalDocuments.length > 0 && (
+                <>
+                  <p className="mt-3 border-t border-slate-200 pt-3 pb-2 text-xs font-bold uppercase tracking-wide text-blue-700">
+                    {t.review.additionalDocsLabel(professionLabel)}
+                  </p>
+                  <div className="divide-y divide-slate-100">
+                    {renderDocRows(additionalDocuments)}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -118,7 +118,7 @@ export const useIntakeStore = create<IntakeState>()(
         }),
     }),
     {
-      name: "igl-visa-intake-v2",
+      name: "igl-visa-intake-v3",
       storage: createJSONStorage(() =>
         typeof window !== "undefined" ? window.localStorage : noopStorage,
       ),

@@ -210,8 +210,13 @@ export function localizeOfficialForm(raw: string): string {
 }
 
 export const SECTION_NAMES_BN: Record<string, string> = {
-  "Personal Information": "ব্যক্তিগত তথ্য",
+  "General Information": "সাধারণ তথ্য",
+  "Work Information": "কর্মসংস্থান / কাজের তথ্য",
+  "Work/Study Information": "পড়াশোনা / প্রতিষ্ঠানের তথ্য",
+  "Educational Information": "শিক্ষাগত তথ্য",
   "Family Information": "পারিবারিক তথ্য",
+  "Travel Information": "ভ্রমণ সংক্রান্ত তথ্য",
+  "Personal Information": "ব্যক্তিগত তথ্য",
   Passport: "পাসপোর্ট সংক্রান্ত তথ্য",
   Contact: "যোগাযোগের তথ্য",
   "Travel Plan": "ভ্রমণ পরিকল্পনা",
@@ -222,6 +227,17 @@ export const SECTION_NAMES_BN: Record<string, string> = {
   "Sponsor (Student)": "স্পন্সর / খরচ বহনকারীর তথ্য (শিক্ষার্থী)",
   "Business (Businessman)": "ব্যবসায়িক তথ্য (ব্যবসায়ী)",
   "Employment (Employee)": "চাকরি সংক্রান্ত তথ্য (চাকরিজীবী)",
+};
+
+export const SUBGROUP_NAMES_BN: Record<string, string> = {
+  "High School": "হাই স্কুল (এসএসসি / সমমান)",
+  College: "কলেজ (এইচএসসি / সমমান)",
+  "Last Education": "সর্বশেষ শিক্ষাগত যোগ্যতা",
+  Father: "পিতার তথ্য",
+  Mother: "মাতার তথ্য",
+  Spouse: "স্বামী / স্ত্রীর তথ্য (শুধুমাত্র বিবাহিত হলে)",
+  "Child 1": "সন্তান ১",
+  "Child 2": "সন্তান ২",
 };
 
 export const PROFESSION_LABELS_BN: Record<ProfessionKey, string> = {
@@ -244,6 +260,12 @@ export interface FieldTranslationBn {
 }
 
 export const FIELD_TRANSLATIONS_BN: Record<string, FieldTranslationBn> = {
+  // General Information
+  applicant_name: {
+    label: "আবেদনকারীর পূর্ণ নাম",
+    placeholder: "পাসপোর্ট অনুযায়ী ইংরেজিতে আপনার পূর্ণ নাম লিখুন",
+    helpText: "পাসপোর্টে থাকা ইংরেজি বানান লিখুন (সংখ্যা ছাড়া, স্বয়ংক্রিয়ভাবে বড় হাতের হবে)।",
+  },
   // Personal Information
   surname: {
     label: "বংশগত নাম / সারনেম (পাসপোর্ট অনুযায়ী)",
@@ -305,31 +327,67 @@ export const FIELD_TRANSLATIONS_BN: Record<string, FieldTranslationBn> = {
 
   // Family Information
   fathers_name: {
-    label: "পিতার পূর্ণ নাম",
-    placeholder: "পাসপোর্ট বা NID অনুযায়ী পিতার পূর্ণ নাম লিখুন",
+    label: "নাম",
+    placeholder: "পিতার পূর্ণ নাম লিখুন",
+  },
+  fathers_nationality: {
+    label: "জাতীয়তা",
+    placeholder: "উদাহরণ: BANGLADESHI",
   },
   fathers_date_of_birth: {
-    label: "পিতার জন্মতারিখ",
-    placeholder: "ট্যাপ করে পিতার জন্মতারিখ বেছে নিন",
-    helpText: "ক্যালেন্ডার খুলে পিতার জন্মতারিখ নির্বাচন করুন।",
+    label: "জন্মতারিখ",
+    placeholder: "ট্যাপ করে জন্মতারিখ বেছে নিন",
+    helpText: "ক্যালেন্ডার খুলে তারিখ নির্বাচন করুন।",
   },
   mothers_name: {
-    label: "মাতার পূর্ণ নাম",
-    placeholder: "পাসপোর্ট বা NID অনুযায়ী মাতার পূর্ণ নাম লিখুন",
+    label: "নাম",
+    placeholder: "মাতার পূর্ণ নাম লিখুন",
+  },
+  mothers_nationality: {
+    label: "জাতীয়তা",
+    placeholder: "উদাহরণ: BANGLADESHI",
   },
   mothers_date_of_birth: {
-    label: "মাতার জন্মতারিখ",
-    placeholder: "ট্যাপ করে মাতার জন্মতারিখ বেছে নিন",
-    helpText: "ক্যালেন্ডার খুলে মাতার জন্মতারিখ নির্বাচন করুন।",
+    label: "জন্মতারিখ",
+    placeholder: "ট্যাপ করে জন্মতারিখ বেছে নিন",
+    helpText: "ক্যালেন্ডার খুলে তারিখ নির্বাচন করুন।",
   },
   spouse_name: {
-    label: "স্বামী বা স্ত্রীর পূর্ণ নাম (বিবাহিত হলে)",
+    label: "নাম",
     placeholder: "বিবাহিত হলে স্বামী/স্ত্রীর পূর্ণ নাম লিখুন",
   },
+  spouse_nationality: {
+    label: "জাতীয়তা",
+    placeholder: "উদাহরণ: BANGLADESHI",
+  },
   spouse_date_of_birth: {
-    label: "স্বামী বা স্ত্রীর জন্মতারিখ (বিবাহিত হলে)",
-    placeholder: "ট্যাপ করে তারিখ বেছে নিন",
+    label: "জন্মতারিখ",
+    placeholder: "ট্যাপ করে জন্মতারিখ বেছে নিন",
     helpText: "ক্যালেন্ডার খুলে তারিখ নির্বাচন করুন।",
+  },
+  child_1_name: {
+    label: "নাম",
+    placeholder: "প্রথম সন্তানের পূর্ণ নাম লিখুন",
+  },
+  child_1_nationality: {
+    label: "জাতীয়তা",
+    placeholder: "উদাহরণ: BANGLADESHI",
+  },
+  child_1_date_of_birth: {
+    label: "জন্মতারিখ",
+    placeholder: "ট্যাপ করে জন্মতারিখ বেছে নিন",
+  },
+  child_2_name: {
+    label: "নাম",
+    placeholder: "দ্বিতীয় সন্তানের পূর্ণ নাম লিখুন",
+  },
+  child_2_nationality: {
+    label: "জাতীয়তা",
+    placeholder: "উদাহরণ: BANGLADESHI",
+  },
+  child_2_date_of_birth: {
+    label: "জন্মতারিখ",
+    placeholder: "ট্যাপ করে জন্মতারিখ বেছে নিন",
   },
   spouse_nationality_nid: {
     label: "স্বামী বা স্ত্রীর জাতীয়তা ও NID নম্বর (বিবাহিত হলে)",
@@ -338,6 +396,44 @@ export const FIELD_TRANSLATIONS_BN: Record<string, FieldTranslationBn> = {
   number_of_children: {
     label: "সন্তানের সংখ্যা",
     placeholder: "উদাহরণ: 0 বা 2",
+  },
+
+  // Educational Information
+  high_school_years: {
+    label: "সময়কাল — শুরু থেকে শেষ",
+    placeholder: "উদাহরণ: 2012 - 2014",
+  },
+  high_school_institution: {
+    label: "প্রতিষ্ঠানের নাম",
+    placeholder: "হাই স্কুলের নাম লিখুন",
+  },
+  high_school_major: {
+    label: "বিভাগ / বিষয় (Major)",
+    placeholder: "উদাহরণ: SCIENCE / COMMERCE / ARTS",
+  },
+  college_years: {
+    label: "সময়কাল — শুরু থেকে শেষ",
+    placeholder: "উদাহরণ: 2014 - 2016",
+  },
+  college_institution: {
+    label: "প্রতিষ্ঠানের নাম",
+    placeholder: "কলেজের নাম লিখুন",
+  },
+  college_major: {
+    label: "বিভাগ / বিষয় (Major)",
+    placeholder: "উদাহরণ: SCIENCE / BUSINESS STUDIES",
+  },
+  last_education_years: {
+    label: "সময়কাল — শুরু থেকে শেষ",
+    placeholder: "উদাহরণ: 2017 - 2021",
+  },
+  last_education_institution: {
+    label: "প্রতিষ্ঠানের নাম",
+    placeholder: "সর্বশেষ শিক্ষা প্রতিষ্ঠানের নাম লিখুন",
+  },
+  last_education_major: {
+    label: "বিভাগ / বিষয় (Major)",
+    placeholder: "উদাহরণ: BBA / BSC IN CSE / HONOURS",
   },
 
   // Passport
@@ -375,7 +471,7 @@ export const FIELD_TRANSLATIONS_BN: Record<string, FieldTranslationBn> = {
 
   // Contact
   present_address: {
-    label: "বর্তমান / বসবাসের ঠিকানা",
+    label: "বর্তমান বসবাসের ঠিকানা",
     placeholder: "পূর্ণ ঠিকানা লিখুন (বাড়ি নং, সড়ক, এলাকা, থানা, জেলা)",
   },
   permanent_address: {
@@ -387,7 +483,7 @@ export const FIELD_TRANSLATIONS_BN: Record<string, FieldTranslationBn> = {
     placeholder: "অন্য দেশে বসবাস করলে দেশের নাম ও পারমিট নম্বর লিখুন",
   },
   phone_primary: {
-    label: "মূল মোবাইল নম্বর",
+    label: "আবেদনকারীর মোবাইল নম্বর",
     placeholder: "01XXXXXXXXX",
     helpText: "শুধুমাত্র বাংলাদেশি মোবাইল নম্বর: +88 নির্ধারিত আছে; 013–019 দিয়ে শুরু ১১ ডিজিট লিখুন।",
   },
@@ -408,23 +504,23 @@ export const FIELD_TRANSLATIONS_BN: Record<string, FieldTranslationBn> = {
     placeholder: "ভ্রমণের উদ্দেশ্য নির্বাচন করুন",
   },
   destination_city: {
-    label: "গন্তব্য শহর / শহরসমূহ",
+    label: "যে শহরে থাকবেন",
     placeholder: "উদাহরণ: KUALA LUMPUR / LONDON",
   },
   intended_arrival_date: {
-    label: "গন্তব্যে পৌঁছানোর সম্ভাব্য তারিখ",
+    label: "পৌঁছানোর তারিখ",
     placeholder: "ট্যাপ করে পৌঁছানোর তারিখ বেছে নিন",
     helpText: "আজ বা সামনের যেকোনো ভ্রমণের তারিখ বেছে নিন।",
   },
   intended_departure_date: {
-    label: "ফিরে আসার সম্ভাব্য তারিখ",
+    label: "ফেরার তারিখ",
     placeholder: "ট্যাপ করে ফেরার তারিখ বেছে নিন",
     helpText: "অবশ্যই পৌঁছানোর তারিখের পরের তারিখ হতে হবে।",
   },
   duration_of_stay_days: {
-    label: "অবস্থানের মোট সময়কাল (দিন)",
+    label: "সর্বোচ্চ অবস্থানের দিন",
     placeholder: "উদাহরণ: 14",
-    helpText: "মোট কত দিন থাকবেন তা সংখ্যায় লিখুন (যেমন: 14)।",
+    helpText: "মোট সর্বোচ্চ কত দিন থাকবেন তা সংখ্যায় লিখুন (যেমন: 14)।",
   },
   number_of_entries_requested: {
     label: "প্রবেশের সংখ্যা (সিঙ্গেল / ডাবল / মাল্টিপল)",
@@ -520,7 +616,7 @@ export const FIELD_TRANSLATIONS_BN: Record<string, FieldTranslationBn> = {
 
   // Education (Student)
   institution_name: {
-    label: "স্কুল / কলেজ / বিশ্ববিদ্যালয়ের নাম",
+    label: "শিক্ষা প্রতিষ্ঠানের নাম (স্কুল / কলেজ / বিশ্ববিদ্যালয়)",
     placeholder: "শিক্ষা প্রতিষ্ঠানের পূর্ণ নাম লিখুন",
   },
   institution_address: {
@@ -528,20 +624,25 @@ export const FIELD_TRANSLATIONS_BN: Record<string, FieldTranslationBn> = {
     placeholder: "শিক্ষা প্রতিষ্ঠানের পূর্ণ ঠিকানা লিখুন",
   },
   institution_phone: {
-    label: "শিক্ষা প্রতিষ্ঠানের ফোন নম্বর",
+    label: "শিক্ষা প্রতিষ্ঠানের যোগাযোগ নম্বর",
     placeholder: "উদাহরণ: 01XXXXXXXXX অথবা অফিস ফোন নম্বর",
   },
   course_or_class: {
-    label: "বর্তমান কোর্স / শ্রেণি / বিষয়",
+    label: "কোর্স / শ্রেণি / প্রোগ্রাম",
     placeholder: "উদাহরণ: BSC IN CSE / HSC / CLASS 10",
   },
   current_semester_or_year: {
-    label: "বর্তমান সেমিস্টার / শিক্ষাবর্ষ",
+    label: "বর্তমান শ্রেণি / সেমিস্টার",
     placeholder: "উদাহরণ: 5TH SEMESTER / 2ND YEAR",
   },
   student_id_number: {
-    label: "শিক্ষার্থী আইডি / রোল নম্বর",
+    label: "শিক্ষার্থী আইডি (Student ID) নম্বর",
     placeholder: "আপনার স্টুডেন্ট আইডি বা রোল নম্বর লিখুন",
+  },
+  study_start_date: {
+    label: "পড়াশোনা শুরুর তারিখ",
+    placeholder: "ট্যাপ করে পড়াশোনা শুরুর তারিখ বেছে নিন",
+    helpText: "ক্যালেন্ডার খুলে তারিখ নির্বাচন করুন।",
   },
   expected_completion_date: {
     label: "পড়াশোনা শেষ হওয়ার সম্ভাব্য তারিখ",
@@ -616,22 +717,22 @@ export const FIELD_TRANSLATIONS_BN: Record<string, FieldTranslationBn> = {
     placeholder: "উদাহরণ: 15",
   },
 
-  // Employment (Employee)
+  // Employment (Employee & Businessman)
   employer_name: {
     label: "প্রতিষ্ঠান / নিয়োগকর্তার নাম",
-    placeholder: "আপনার অফিস বা কোম্পানির পূর্ণ নাম লিখুন",
+    placeholder: "আপনার প্রতিষ্ঠান বা কোম্পানির পূর্ণ নাম লিখুন",
   },
   employer_address: {
-    label: "অফিসের ঠিকানা",
+    label: "প্রতিষ্ঠানের ঠিকানা",
     placeholder: "কর্মস্থলের পূর্ণ ঠিকানা লিখুন",
   },
   employer_phone: {
-    label: "অফিসের ফোন নম্বর",
+    label: "যোগাযোগের ফোন নম্বর",
     placeholder: "উদাহরণ: 01XXXXXXXXX অথবা অফিসের নম্বর",
   },
   designation: {
     label: "পদবি (Designation)",
-    placeholder: "উদাহরণ: SENIOR OFFICER / SOFTWARE ENGINEER",
+    placeholder: "উদাহরণ: SENIOR OFFICER / MANAGING DIRECTOR",
   },
   department: {
     label: "বিভাগ (Department)",
@@ -642,17 +743,25 @@ export const FIELD_TRANSLATIONS_BN: Record<string, FieldTranslationBn> = {
     placeholder: "আপনার অফিস আইডি নম্বর লিখুন",
   },
   date_of_joining: {
-    label: "চাকরিতে যোগদানের তারিখ",
+    label: "যোগদানের তারিখ (শুরুর তারিখ)",
     placeholder: "ট্যাপ করে যোগদানের তারিখ বেছে নিন",
-    helpText: "ক্যালেন্ডার খুলে চাকরিতে যোগদানের তারিখ নির্বাচন করুন।",
+    helpText: "ক্যালেন্ডার খুলে যোগদানের তারিখ নির্বাচন করুন।",
   },
   monthly_salary: {
     label: "মাসিক বেতন",
     placeholder: "উদাহরণ: 50000",
     helpText: "আপনার মাসিক বেতনের পরিমাণ সংখ্যায় লিখুন।",
   },
+  supervisor_name: {
+    label: "সুপারভাইজারের নাম",
+    placeholder: "সুপারভাইজার বা ঊর্ধ্বতন কর্মকর্তার নাম লিখুন",
+  },
+  supervisor_phone: {
+    label: "সুপারভাইজারের ফোন নম্বর",
+    placeholder: "উদাহরণ: 01XXXXXXXXX অথবা অফিসের নম্বর",
+  },
   approved_leave_dates: {
-    label: "অনুমোদিত ছুটির তারিখ (শুরু থেকে শেষ)",
+    label: "অনুমোদিত ছুটির তারিখ (এই ভ্রমণের জন্য)",
     placeholder: "উদাহরণ: 10 DEC 2026 TO 24 DEC 2026",
   },
 };
@@ -875,10 +984,20 @@ export const DOCUMENT_TRANSLATIONS_BN: Record<string, DocumentTranslationBn> = {
 };
 
 export const SECTION_INTROS_BN: Record<string, string> = {
+  "General Information":
+    "আপনার নাম, পাসপোর্ট নম্বর, সচল মোবাইল নম্বর এবং বর্তমান ঠিকানা লিখুন।",
+  "Work Information":
+    "আপনার বর্তমান কর্মসংস্থান ও প্রতিষ্ঠানের বিস্তারিত তথ্য লিখুন।",
+  "Work/Study Information":
+    "আপনি বর্তমানে যে স্কুল, কলেজ বা বিশ্ববিদ্যালয়ে পড়াশোনা করছেন তার তথ্য লিখুন।",
+  "Educational Information":
+    "আপনার শিক্ষাগত যোগ্যতার তথ্য দিন (সর্বশেষ শিক্ষাগত যোগ্যতা অবশ্যই পূরণ করতে হবে)।",
+  "Travel Information":
+    "আপনি কোন শহরে থাকবেন, কবে যাবেন, কবে ফিরবেন এবং সর্বোচ্চ কত দিন থাকবেন তা লিখুন।",
   "Personal Information":
     "আপনার পাসপোর্ট অনুযায়ী ব্যক্তিগত তথ্যগুলো নির্ভুলভাবে লিখুন।",
   "Family Information":
-    "আপনার পিতা-মাতার নাম এবং বিবাহিত হলে স্বামী/স্ত্রীর তথ্য লিখুন।",
+    "পিতা-মাতার তথ্য অবশ্যই দিন; বিবাহিত হলে স্বামী/স্ত্রী এবং সন্তান থাকলে তাদের তথ্য দিন।",
   Passport:
     "আপনার পাসপোর্ট দেখে নম্বর ও তারিখগুলো অত্যন্ত সতর্কতার সাথে লিখুন।",
   Contact:

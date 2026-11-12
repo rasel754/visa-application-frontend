@@ -15,26 +15,26 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CountrySelect } from "@/components/form/CountrySelect";
 import { DocumentUploadCard } from "@/components/form/DocumentUploadCard";
-import { DynamicField } from "@/components/form/DynamicField";
 import { FormProgress } from "@/components/form/FormProgress";
 import { ErrorItem, FriendlyError } from "@/components/form/FriendlyError";
 import { OtpVerificationCard } from "@/components/form/OtpVerificationCard";
 import { ProfessionSelect } from "@/components/form/ProfessionSelect";
 import { ReviewSection } from "@/components/form/ReviewSection";
+import { SectionFieldsView } from "@/components/form/SectionFieldsView";
 import { useCountries } from "@/hooks/useCountries";
 import { useVisitForm } from "@/hooks/useVisitForm";
 import { ApiRequestError, api } from "@/lib/api";
 import { normalizeBdMobileInput } from "@/lib/bd-validation";
 import { ERROR_MESSAGES, localizeErrorMessage } from "@/lib/error-messages";
 import {
+  buildOrderedSections,
   formatProfessionLabel,
   getLocalizedCountryName,
   getLocalizedDocumentLabel,
-  getLocalizedFieldLabel,
+  getLocalizedFieldDisplayLabel,
   getLocalizedSectionIntro,
   getLocalizedSectionName,
   getLocalizedVisaName,
-  groupFieldsBySection,
 } from "@/lib/field-helpers";
 import {
   validateDocumentsMap,
@@ -222,13 +222,11 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
 
   const sections = useMemo(() => {
     if (!visitForm || !selectedProfile || !profession) return [];
-    return [
-      ...groupFieldsBySection(visitForm.common_information_fields, "common"),
-      ...groupFieldsBySection(
-        selectedProfile.profile_information_fields,
-        profession,
-      ),
-    ];
+    return buildOrderedSections(
+      visitForm.common_information_fields,
+      selectedProfile.profile_information_fields,
+      profession,
+    );
   }, [visitForm, selectedProfile, profession]);
 
   const allFields = useMemo(() => {
@@ -254,6 +252,8 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     [commonDocuments, additionalDocuments],
   );
 
+  const hasDocumentsStep = allDocuments.length > 0;
+
   const stepNames = useMemo(() => {
     if (!visitForm || !profession) {
       return [t.progress.stepCountry, t.progress.stepProfession];
@@ -262,14 +262,15 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
       t.progress.stepCountry,
       t.progress.stepProfession,
       ...sections.map((s) => getLocalizedSectionName(s.section, language)),
-      t.progress.stepDocuments,
+      ...(hasDocumentsStep ? [t.progress.stepDocuments] : []),
       t.progress.stepReview,
     ];
-  }, [visitForm, profession, sections, language, t]);
+  }, [visitForm, profession, sections, hasDocumentsStep, language, t]);
 
   const sectionStartIndex = 2;
-  const documentsStepIndex = sectionStartIndex + sections.length;
-  const reviewStepIndex = documentsStepIndex + 1;
+  const sectionEndIndex = sectionStartIndex + sections.length;
+  const documentsStepIndex = hasDocumentsStep ? sectionEndIndex : null;
+  const reviewStepIndex = sectionEndIndex + (hasDocumentsStep ? 1 : 0);
 
   const safeStepIndex = Math.min(
     Math.max(0, currentStepIndex),
@@ -373,7 +374,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
         return sectionStartIndex + i;
       }
     }
-    if (allDocuments.some((d) => d.key === key)) {
+    if (documentsStepIndex !== null && allDocuments.some((d) => d.key === key)) {
       return documentsStepIndex;
     }
     return reviewStepIndex;
@@ -381,7 +382,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
 
   const getLabelForKey = (key: string): string => {
     const field = allFields.find((f) => f.key === key);
-    if (field) return getLocalizedFieldLabel(field, language);
+    if (field) return getLocalizedFieldDisplayLabel(field, language);
     const doc = allDocuments.find((d) => d.key === key);
     if (doc) return getLocalizedDocumentLabel(doc, language);
     return key;
@@ -439,7 +440,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
 
     if (
       safeStepIndex >= sectionStartIndex &&
-      safeStepIndex < documentsStepIndex
+      safeStepIndex < sectionEndIndex
     ) {
       const sectionGroup = sections[safeStepIndex - sectionStartIndex];
       if (sectionGroup) {
@@ -460,7 +461,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
       return;
     }
 
-    if (safeStepIndex === documentsStepIndex) {
+    if (documentsStepIndex !== null && safeStepIndex === documentsStepIndex) {
       const docErrors = validateDocumentsMap(allDocuments, files);
       if (Object.keys(docErrors).length > 0) {
         setFieldErrors((prev) => ({ ...prev, ...docErrors }));
@@ -762,7 +763,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
   }
 
   const currentSectionGroup =
-    safeStepIndex >= sectionStartIndex && safeStepIndex < documentsStepIndex
+    safeStepIndex >= sectionStartIndex && safeStepIndex < sectionEndIndex
       ? sections[safeStepIndex - sectionStartIndex]
       : null;
 
@@ -785,7 +786,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
                 .filter((pair): pair is [string, string] => Boolean(pair[1])),
             ),
           )
-        : safeStepIndex === documentsStepIndex
+        : documentsStepIndex !== null && safeStepIndex === documentsStepIndex
           ? buildErrorItems(
               Object.fromEntries(
                 allDocuments
@@ -905,23 +906,20 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
               </p>
             </div>
 
-            <div className="space-y-6">
-              {currentSectionGroup.fields.map((field) => (
-                <DynamicField
-                  key={field.key}
-                  field={field}
-                  value={answers[field.key]}
-                  allAnswers={answers}
-                  error={fieldErrors[field.key]}
-                  onChange={(val) => handleFieldChange(field, val)}
-                  onBlurValidate={() => handleFieldBlur(field)}
-                />
-              ))}
-            </div>
+            <SectionFieldsView
+              fields={currentSectionGroup.fields}
+              answers={answers}
+              fieldErrors={fieldErrors}
+              onChange={handleFieldChange}
+              onBlurValidate={handleFieldBlur}
+            />
           </div>
         )}
 
-        {safeStepIndex === documentsStepIndex && visitForm && profession && (
+        {documentsStepIndex !== null &&
+          safeStepIndex === documentsStepIndex &&
+          visitForm &&
+          profession && (
           <div className="space-y-6">
             <div className="space-y-1 border-b border-slate-100 pb-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">

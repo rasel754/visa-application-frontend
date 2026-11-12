@@ -17,6 +17,7 @@ export interface FormField {
   type: FieldType;
   required: boolean;
   section: string;
+  subgroup?: string;
 }
 
 export interface FormDocument {

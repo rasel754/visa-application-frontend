@@ -55,9 +55,12 @@ const PAST_OR_TODAY_DATE_KEYS = new Set([
   "fathers_date_of_birth",
   "mothers_date_of_birth",
   "spouse_date_of_birth",
+  "child_1_date_of_birth",
+  "child_2_date_of_birth",
   "business_start_date",
   "date_of_joining",
   "employment_start_date",
+  "study_start_date",
 ]);
 const FUTURE_DATE_KEYS = new Set([
   "intended_arrival_date",
@@ -81,6 +84,9 @@ function getDefaultFocusYear(fieldKey: string): number | undefined {
   }
   if (fieldKey === "fathers_date_of_birth" || fieldKey === "mothers_date_of_birth") {
     return 1965;
+  }
+  if (fieldKey === "child_1_date_of_birth" || fieldKey === "child_2_date_of_birth") {
+    return 2015;
   }
   return undefined;
 }
@@ -171,6 +177,14 @@ export function DynamicField({
             parsedArrival.getDate() + 1,
           );
           minDateYmd = formatLocalDateToYmd(dayAfter);
+        }
+      } else if (field.key === "expected_completion_date") {
+        const studyStart =
+          typeof allAnswers["study_start_date"] === "string"
+            ? allAnswers["study_start_date"]
+            : "";
+        if (parseYmdToLocalDate(studyStart)) {
+          minDateYmd = studyStart;
         }
       }
 

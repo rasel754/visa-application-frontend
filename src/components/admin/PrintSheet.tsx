@@ -117,7 +117,10 @@ export function PrintSheet({ detail }: PrintSheetProps) {
                     className="grid grid-cols-12 gap-3 px-2.5 py-1.5 text-xs"
                   >
                     <span className="col-span-5 font-semibold text-slate-800">
-                      {field.label}:
+                      {field.subgroup
+                        ? `${field.subgroup} — ${field.label}`
+                        : field.label}
+                      :
                     </span>
                     <span className="col-span-7 whitespace-pre-wrap text-black">
                       {textVal}
@@ -197,11 +200,7 @@ export function PrintSheet({ detail }: PrintSheetProps) {
 
       {/* Sections */}
       <div className="mt-5 space-y-5">
-        {renderSectionList(detail.commonSections)}
-        {renderSectionList(
-          detail.professionSections,
-          `Profession Details — ${detail.professionLabel}`,
-        )}
+        {renderSectionList(detail.sections)}
         {renderDocChecklist("Common Documents Checklist", detail.commonDocuments)}
         {renderDocChecklist(
           `Additional Documents (${detail.professionLabel})`,
