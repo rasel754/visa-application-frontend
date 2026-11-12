@@ -374,14 +374,27 @@ export function getFieldHelpText(
     return "Tap to open calendar and choose the date.";
   }
 
-  if (key === "surname" || key === "given_names") {
-    return "Copy the exact English spelling from your passport (auto-CAPITALIZED).";
+  if (key === "surname" || key === "given_names" || key === "surname_at_birth") {
+    return "Copy the exact English spelling from your passport (letters only, max 40 characters, auto-CAPITALIZED).";
+  }
+  if (
+    key === "place_of_birth" ||
+    key === "country_of_birth" ||
+    key === "current_nationality" ||
+    key === "nationality_at_birth" ||
+    key === "other_nationalities" ||
+    key === "religion"
+  ) {
+    return "Letters only, maximum 50 characters.";
+  }
+  if (key === "fathers_name" || key === "mothers_name" || key === "spouse_name") {
+    return "Letters only, maximum 60 characters.";
   }
   if (key === "email" || key === "business_email") {
-    return "Write your email address carefully (keeps normal lowercase).";
+    return "Write your email address carefully (max 70 characters, keeps normal lowercase).";
   }
   if (key === "duration_of_stay_days") {
-    return "Write the total number of days (example: 14).";
+    return "Write the total number of days between 1 and 365 (example: 14).";
   }
   if (key === "monthly_salary" || key === "estimated_trip_cost") {
     return "Write the amount in numbers.";

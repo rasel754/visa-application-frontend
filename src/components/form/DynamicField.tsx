@@ -22,7 +22,9 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import {
   extractBdMobileLocalPart,
+  getFieldMaxLength,
   isBdMobileKey,
+  isNoNumberFieldKey,
   isTuitionKey,
   shouldUppercaseField,
 } from "@/lib/bd-validation";
@@ -87,19 +89,31 @@ function isDigitKeystroke(key: string): boolean {
   return /^[\d\u09E6-\u09EF]$/.test(key);
 }
 
-function preserveCursorUppercase(
+function isAllowedTelKeystroke(key: string): boolean {
+  return /^[\d\u09E6-\u09EF+\-\s()]$/.test(key);
+}
+
+function applySanitizedValue(
   target: HTMLInputElement | HTMLTextAreaElement,
-  nextRaw: string,
-  emit: (upper: string) => void,
+  rawValue: string,
+  sanitize: (val: string) => string,
+  emit: (cleaned: string) => void,
 ) {
   const start = target.selectionStart;
   const end = target.selectionEnd;
-  const upper = nextRaw.toUpperCase();
-  emit(upper);
+  const cleaned = sanitize(rawValue);
+  const nextStart =
+    start !== null ? sanitize(rawValue.slice(0, start)).length : null;
+  const nextEnd = end !== null ? sanitize(rawValue.slice(0, end)).length : null;
+  emit(cleaned);
   window.requestAnimationFrame(() => {
-    if (document.activeElement === target && start !== null && end !== null) {
+    if (
+      document.activeElement === target &&
+      nextStart !== null &&
+      nextEnd !== null
+    ) {
       try {
-        target.setSelectionRange(start, end);
+        target.setSelectionRange(nextStart, nextEnd);
       } catch {
         // Ignore non-selectable input types
       }
@@ -119,6 +133,8 @@ export function DynamicField({
   const t = getUiStrings(language);
 
   const inputId = `field-${field.key}`;
+  const maxLength = getFieldMaxLength(field);
+  const disallowNumbers = isNoNumberFieldKey(field.key);
   const localizedLabel = getLocalizedFieldLabel(field, language);
   const placeholder = getFieldPlaceholder(field, language);
   const helpText = getFieldHelpText(field, language);
@@ -184,6 +200,7 @@ export function DynamicField({
         if (digitsOnly.startsWith("8801") && digitsOnly.length >= 13) {
           digitsOnly = digitsOnly.slice(2);
         }
+        digitsOnly = digitsOnly.slice(0, 11);
         onChange(digitsOnly ? `+88${digitsOnly}` : "");
       };
 
@@ -270,12 +287,20 @@ export function DynamicField({
         <Textarea
           id={inputId}
           value={stringValue}
+          maxLength={maxLength}
           onChange={(e) => {
-            if (uppercase) {
-              preserveCursorUppercase(e.target, e.target.value, (u) => onChange(u));
-            } else {
-              onChange(e.target.value);
-            }
+            applySanitizedValue(
+              e.target,
+              e.target.value,
+              (val) => {
+                let next = uppercase ? val.toUpperCase() : val;
+                if (maxLength !== undefined) {
+                  next = next.slice(0, maxLength);
+                }
+                return next;
+              },
+              (cleaned) => onChange(cleaned),
+            );
           }}
           onBlur={onBlurValidate}
           placeholder={placeholder}
@@ -438,12 +463,16 @@ export function DynamicField({
           id={inputId}
           type="text"
           inputMode="numeric"
+          maxLength={maxLength}
           value={stringValue}
           onChange={(e) => {
-            const digitsOnly = normalizeBengaliDigits(e.target.value).replace(
+            let digitsOnly = normalizeBengaliDigits(e.target.value).replace(
               /\D/g,
               "",
             );
+            if (maxLength !== undefined) {
+              digitsOnly = digitsOnly.slice(0, maxLength);
+            }
             onChange(digitsOnly);
           }}
           onBlur={onBlurValidate}
@@ -470,7 +499,9 @@ export function DynamicField({
     // 8. Standard inputs (text, email, tel)
     const isNumericDigitsField =
       field.key === "national_id_number" || field.key === "tin_number";
-    const uppercase = shouldUppercaseField(field) || field.key === "passport_number";
+    const isPassportField = field.key === "passport_number";
+    const isTelField = field.type === "tel";
+    const uppercase = shouldUppercaseField(field) || isPassportField;
     const htmlInputType = field.type === "select" ? "text" : field.type;
 
     return (
@@ -478,19 +509,75 @@ export function DynamicField({
         id={inputId}
         type={htmlInputType}
         inputMode={isNumericDigitsField ? "numeric" : undefined}
+        maxLength={maxLength}
         value={stringValue}
+        onKeyDown={(e) => {
+          if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) {
+            return;
+          }
+          if (isNumericDigitsField && !isDigitKeystroke(e.key)) {
+            e.preventDefault();
+            return;
+          }
+          if (isPassportField && !/^[A-Za-z0-9]$/.test(e.key)) {
+            e.preventDefault();
+            return;
+          }
+          if (disallowNumbers && isDigitKeystroke(e.key)) {
+            e.preventDefault();
+            return;
+          }
+          if (isTelField && !isAllowedTelKeystroke(e.key)) {
+            e.preventDefault();
+          }
+        }}
         onChange={(e) => {
           if (isNumericDigitsField) {
-            const digitsOnly = normalizeBengaliDigits(e.target.value).replace(
+            let digitsOnly = normalizeBengaliDigits(e.target.value).replace(
               /\D/g,
               "",
             );
+            if (maxLength !== undefined) {
+              digitsOnly = digitsOnly.slice(0, maxLength);
+            }
             onChange(digitsOnly);
-          } else if (uppercase) {
-            preserveCursorUppercase(e.target, e.target.value, (u) => onChange(u));
-          } else {
-            onChange(e.target.value);
+            return;
           }
+          if (isPassportField) {
+            applySanitizedValue(
+              e.target,
+              e.target.value,
+              (val) => val.replace(/[^A-Za-z0-9]/g, "").toUpperCase().slice(0, 9),
+              (cleaned) => onChange(cleaned),
+            );
+            return;
+          }
+          if (field.type === "email") {
+            const nextVal =
+              maxLength !== undefined
+                ? e.target.value.slice(0, maxLength)
+                : e.target.value;
+            onChange(nextVal);
+            return;
+          }
+          applySanitizedValue(
+            e.target,
+            e.target.value,
+            (val) => {
+              let next = val;
+              if (disallowNumbers) {
+                next = next.replace(/[\d\u09E6-\u09EF]/g, "");
+              }
+              if (uppercase) {
+                next = next.toUpperCase();
+              }
+              if (maxLength !== undefined) {
+                next = next.slice(0, maxLength);
+              }
+              return next;
+            },
+            (cleaned) => onChange(cleaned),
+          );
         }}
         onBlur={onBlurValidate}
         placeholder={placeholder}

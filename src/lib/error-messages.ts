@@ -1,4 +1,5 @@
 import { FormLanguage } from "@/store/language-store";
+import { toBanglaDigits } from "./i18n/bangla-data";
 
 export function toSimpleFieldName(label: string): string {
   const withoutDashNote = label.replace(/\s*—\s*repeating table\s*$/i, "");
@@ -16,16 +17,34 @@ export const ERROR_MESSAGES = {
   requiredFile: (label: string): string =>
     `Please give your ${toSimpleFieldName(label)}.`,
   wrongEmail: "This email does not look right. Please check and write again.",
+  emailTooLong: "Email address must be 70 characters or fewer.",
   wrongPhone: "Please write a correct phone number.",
   invalidBdPhone: "Enter a valid Bangladeshi mobile number (01XXXXXXXXX).",
   passportLength: "Passport number must be exactly 9 characters.",
+  passportFormat: "Passport number must be 9 letters and numbers (e.g. A01234567).",
+  previousPassportsInvalid:
+    "Previous passport numbers can only contain letters, numbers, commas, slashes, or hyphens.",
   tuitionInvalid: "Tuition fee can contain numbers only, maximum 8 digits.",
   nidInvalid: "NID number must be 10, 13 or 17 digits.",
   tinInvalid: "TIN number must be exactly 12 digits.",
+  tradeLicenceInvalid: "Enter a valid Trade Licence number (must include digits).",
+  numbersNotAllowed: "Numbers are not allowed in this field.",
+  mustContainLetter: "Please enter valid text (letters are required).",
+  maxLengthExceeded: (max: number): string => `Must be ${max} characters or fewer.`,
+  minLengthRequired: (min: number): string => `Please write at least ${min} characters.`,
+  wholeNumber: "Please enter a whole number.",
+  durationRange: "Duration of stay must be between 1 and 365 days.",
+  childrenRange: "Number of children must be between 0 and 20.",
+  numberOutOfRange: "Please enter a realistic positive number.",
   pastDate: "This date has already passed. Please choose a future date.",
   pastOrTodayDate: "Please choose a date on or before today.",
+  invalidDateRange: "Please choose a valid date between 1900 and 2100.",
   dobPast: "Date of birth must be in the past.",
   dobAgeRange: "Applicant age at travel must be between 0 and 100 years.",
+  parentDobAfterApplicant:
+    "Parent's date of birth must be before the applicant's date of birth.",
+  passportIssueBeforeDob: "Passport issue date cannot be before your date of birth.",
+  dateAfterDob: "This date must be after your date of birth.",
   passportIssueBeforeToday: "Passport issue date must be before today.",
   passportIssueBeforeExpiry: "Passport issue date must be before the expiry date.",
   passportBeforeTravel:
@@ -69,19 +88,42 @@ export const ERROR_MESSAGES = {
 
 const EXACT_BANGLA_ERRORS: Record<string, string> = {
   [ERROR_MESSAGES.wrongEmail]: "ইমেইল ঠিকানাটি সঠিক নয়। দয়া করে আবার যাচাই করুন।",
+  [ERROR_MESSAGES.emailTooLong]: "ইমেইল ঠিকানা সর্বোচ্চ ৭০ অক্ষরের মধ্যে হতে হবে।",
   [ERROR_MESSAGES.wrongPhone]: "সঠিক ফোন নম্বর লিখুন।",
   [ERROR_MESSAGES.invalidBdPhone]:
     "সঠিক বাংলাদেশি মোবাইল নম্বর দিন (01 দিয়ে শুরু ১১ ডিজিট)।",
   [ERROR_MESSAGES.passportLength]: "পাসপোর্ট নম্বর ঠিক ৯ অক্ষরের হতে হবে।",
+  [ERROR_MESSAGES.passportFormat]:
+    "পাসপোর্ট নম্বর ৯ অক্ষরের হতে হবে এবং এতে ইংরেজি অক্ষর ও সংখ্যা থাকতে হবে (যেমন: A01234567)।",
+  [ERROR_MESSAGES.previousPassportsInvalid]:
+    "পূর্ববর্তী পাসপোর্ট নম্বরে শুধুমাত্র অক্ষর, সংখ্যা, কমা, স্ল্যাশ বা হাইফেন ব্যবহার করা যাবে।",
   [ERROR_MESSAGES.tuitionInvalid]:
     "টিউশন ফি শুধু সংখ্যায় হতে হবে (সর্বোচ্চ ৮ ডিজিট)।",
   [ERROR_MESSAGES.nidInvalid]: "এনআইডি (NID) নম্বর ১০, ১৩ অথবা ১৭ ডিজিটের হতে হবে।",
   [ERROR_MESSAGES.tinInvalid]: "টিআইএন (TIN) নম্বর ঠিক ১২ ডিজিটের হতে হবে।",
+  [ERROR_MESSAGES.tradeLicenceInvalid]:
+    "সঠিক ট্রেড লাইসেন্স নম্বর লিখুন (সংখ্যা থাকতে হবে)।",
+  [ERROR_MESSAGES.numbersNotAllowed]: "এই ঘরে কোনো সংখ্যা লেখা যাবে না।",
+  [ERROR_MESSAGES.mustContainLetter]:
+    "অনুগ্রহ করে সঠিক তথ্য লিখুন (অক্ষর থাকতে হবে)।",
+  [ERROR_MESSAGES.wholeNumber]: "অনুগ্রহ করে পূর্ণ সংখ্যা লিখুন।",
+  [ERROR_MESSAGES.durationRange]:
+    "অবস্থানের সময়কাল ১ থেকে ৩৬৫ দিনের মধ্যে হতে হবে।",
+  [ERROR_MESSAGES.childrenRange]: "সন্তানের সংখ্যা ০ থেকে ২০-এর মধ্যে হতে হবে।",
+  [ERROR_MESSAGES.numberOutOfRange]: "অনুগ্রহ করে একটি সঠিক ধনাত্মক সংখ্যা লিখুন।",
   [ERROR_MESSAGES.pastDate]:
     "এই তারিখটি পার হয়ে গেছে। অনুগ্রহ করে সামনের কোনো তারিখ দিন।",
   [ERROR_MESSAGES.pastOrTodayDate]: "আজকের বা তার আগের কোনো তারিখ বেছে নিন।",
+  [ERROR_MESSAGES.invalidDateRange]:
+    "অনুগ্রহ করে ১৯০০ থেকে ২১০০ সালের মধ্যে সঠিক তারিখ বেছে নিন।",
   [ERROR_MESSAGES.dobPast]: "জন্মতারিখ অবশ্যই আজকের আগের হতে হবে।",
   [ERROR_MESSAGES.dobAgeRange]: "ভ্রমণের সময় আবেদনকারীর বয়স ০ থেকে ১০০ বছরের মধ্যে হতে হবে।",
+  [ERROR_MESSAGES.parentDobAfterApplicant]:
+    "পিতা/মাতার জন্মতারিখ অবশ্যই আবেদনকারীর জন্মতারিখের আগে হতে হবে।",
+  [ERROR_MESSAGES.passportIssueBeforeDob]:
+    "পাসপোর্ট ইস্যুর তারিখ জন্মতারিখের আগে হতে পারবে না।",
+  [ERROR_MESSAGES.dateAfterDob]:
+    "এই তারিখটি অবশ্যই আপনার জন্মতারিখের পরের হতে হবে।",
   [ERROR_MESSAGES.passportIssueBeforeToday]:
     "পাসপোর্ট ইস্যুর তারিখ আজকের আগের হতে হবে।",
   [ERROR_MESSAGES.passportIssueBeforeExpiry]:
@@ -151,6 +193,14 @@ export function getBanglaError(
   if (!message) return null;
   if (EXACT_BANGLA_ERRORS[message]) {
     return EXACT_BANGLA_ERRORS[message];
+  }
+  const maxLenMatch = /^Must be (\d+) characters or fewer\.$/.exec(message);
+  if (maxLenMatch?.[1]) {
+    return `সর্বোচ্চ ${toBanglaDigits(maxLenMatch[1])} অক্ষরের মধ্যে লিখুন।`;
+  }
+  const minLenMatch = /^Please write at least (\d+) characters\.$/.exec(message);
+  if (minLenMatch?.[1]) {
+    return `কমপক্ষে ${toBanglaDigits(minLenMatch[1])} অক্ষর লিখুন।`;
   }
   if (message.startsWith("Please write your ")) {
     if (localizedItemLabel) {
