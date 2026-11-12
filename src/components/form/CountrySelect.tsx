@@ -26,16 +26,22 @@ export function CountrySelect({
   const language = useLanguageStore((s) => s.language);
   const t = getUiStrings(language);
 
-  const options: ComboboxOption[] = countries.map((c) => {
-    const bnName = getLocalizedCountryName(c.country_code, c.country, "bn");
-    const bnRegion = getLocalizedRegionName(c.region, "bn");
-    return {
-      value: c.country_code,
-      label: getLocalizedCountryName(c.country_code, c.country, language),
-      hint: getLocalizedRegionName(c.region, language),
-      keywords: [c.country, bnName, c.country_code, c.region, bnRegion],
-    };
-  });
+  const options: ComboboxOption[] = [...countries]
+    .map((c) => {
+      const bnName = getLocalizedCountryName(c.country_code, c.country, "bn");
+      const bnRegion = getLocalizedRegionName(c.region, "bn");
+      return {
+        value: c.country_code,
+        label: getLocalizedCountryName(c.country_code, c.country, language),
+        hint: getLocalizedRegionName(c.region, language),
+        keywords: [c.country, bnName, c.country_code, c.region, bnRegion],
+      };
+    })
+    .sort((a, b) =>
+      a.label.localeCompare(b.label, language === "bn" ? "bn" : "en", {
+        sensitivity: "base",
+      }),
+    );
 
   const selected = countries.find(
     (c) =>

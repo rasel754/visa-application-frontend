@@ -351,7 +351,7 @@ export function getFieldPlaceholder(
     return "Example: 123456789012 (12 digits)";
   }
   if (key.endsWith("_years")) {
-    return "Example: 2018 - 2022";
+    return "Example: 2004-2006";
   }
   if (key.endsWith("_institution")) {
     return "Write school, college, or university name";
@@ -450,13 +450,22 @@ export function getFieldHelpText(
       return "Choose today or a future travel date.";
     }
     if (key === "intended_departure_date") {
-      return "Must be after your arrival date.";
+      return "Optional. If provided, must be after your arrival date.";
     }
     return "Tap to open calendar and choose the date.";
   }
 
-  if (key === "applicant_name" || key === "surname" || key === "given_names" || key === "surname_at_birth") {
-    return "Copy the exact English spelling from your passport (letters only, auto-CAPITALIZED).";
+  if (key === "applicant_name") {
+    return "Copy the exact English spelling from your passport (letters only, max 60 characters, auto-CAPITALIZED).";
+  }
+  if (key === "surname" || key === "given_names" || key === "surname_at_birth") {
+    return "Copy the exact English spelling from your passport (letters only, max 40 characters, auto-CAPITALIZED).";
+  }
+  if (key === "employer_name") {
+    return "Letters only, maximum 50 characters.";
+  }
+  if (key.endsWith("_years")) {
+    return "Enter start and end year in YYYY-YYYY format (example: 2004-2006).";
   }
   if (
     key === "place_of_birth" ||

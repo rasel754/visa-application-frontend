@@ -24,6 +24,7 @@ import {
   extractBdMobileLocalPart,
   getFieldMaxLength,
   isBdMobileKey,
+  isEducationYearsKey,
   isNoNumberFieldKey,
   isTuitionKey,
   shouldUppercaseField,
@@ -97,6 +98,30 @@ function isDigitKeystroke(key: string): boolean {
 
 function isAllowedTelKeystroke(key: string): boolean {
   return /^[\d\u09E6-\u09EF+\-\s()]$/.test(key);
+}
+
+function isAllowedYearsKeystroke(key: string): boolean {
+  return /^[\d\u09E6-\u09EF-]$/.test(key);
+}
+
+function formatEducationYearsInput(raw: string): string {
+  const normalized = normalizeBengaliDigits(raw)
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/[^\d-]/g, "");
+
+  const dashIdx = normalized.indexOf("-");
+  if (dashIdx === -1) {
+    const digits = normalized.slice(0, 8);
+    if (digits.length > 4) {
+      return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+    }
+    return digits;
+  }
+
+  const left = normalized.slice(0, dashIdx).replace(/-/g, "").slice(0, 4);
+  const right = normalized.slice(dashIdx + 1).replace(/-/g, "").slice(0, 4);
+  if (!left) return "";
+  return `${left}-${right}`;
 }
 
 function applySanitizedValue(
@@ -514,6 +539,7 @@ export function DynamicField({
     const isNumericDigitsField =
       field.key === "national_id_number" || field.key === "tin_number";
     const isPassportField = field.key === "passport_number";
+    const isYearsField = isEducationYearsKey(field.key);
     const isTelField = field.type === "tel";
     const uppercase = shouldUppercaseField(field) || isPassportField;
     const htmlInputType = field.type === "select" ? "text" : field.type;
@@ -522,7 +548,9 @@ export function DynamicField({
       <Input
         id={inputId}
         type={htmlInputType}
-        inputMode={isNumericDigitsField ? "numeric" : undefined}
+        inputMode={
+          isNumericDigitsField || isYearsField ? "numeric" : undefined
+        }
         maxLength={maxLength}
         value={stringValue}
         onKeyDown={(e) => {
@@ -530,6 +558,10 @@ export function DynamicField({
             return;
           }
           if (isNumericDigitsField && !isDigitKeystroke(e.key)) {
+            e.preventDefault();
+            return;
+          }
+          if (isYearsField && !isAllowedYearsKeystroke(e.key)) {
             e.preventDefault();
             return;
           }
@@ -555,6 +587,10 @@ export function DynamicField({
               digitsOnly = digitsOnly.slice(0, maxLength);
             }
             onChange(digitsOnly);
+            return;
+          }
+          if (isYearsField) {
+            onChange(formatEducationYearsInput(e.target.value));
             return;
           }
           if (isPassportField) {

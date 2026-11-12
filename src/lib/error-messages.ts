@@ -55,7 +55,8 @@ export const ERROR_MESSAGES = {
   courseEndBeforeStart: "Course end date cannot be before the start date.",
   expectedCompletionBeforeStart:
     "Expected completion date cannot be before your study start date.",
-  yearsInvalid: "Please enter valid years (e.g. 2018 - 2022).",
+  yearsInvalid: "Please enter years in YYYY-YYYY format (example: 2004-2006).",
+  yearsOrderInvalid: "End year cannot be before start year (example: 2004-2006).",
   fileTooBig: "This file is too big. Please give a file smaller than 10 MB.",
   wrongFileType: "Only PDF or photo (JPG/PNG) files are allowed here.",
   uploadFailed:
@@ -142,7 +143,9 @@ const EXACT_BANGLA_ERRORS: Record<string, string> = {
   [ERROR_MESSAGES.expectedCompletionBeforeStart]:
     "পড়াশোনা শেষ হওয়ার সম্ভাব্য তারিখ শুরুর তারিখের আগে হতে পারবে না।",
   [ERROR_MESSAGES.yearsInvalid]:
-    "সঠিক শিক্ষাবর্ষ লিখুন (যেমন: 2018 - 2022)।",
+    "সঠিক ফরম্যাটে শিক্ষাবর্ষ লিখুন (যেমন: 2004-2006)।",
+  [ERROR_MESSAGES.yearsOrderInvalid]:
+    "শেষের সাল শুরুর সালের আগে হতে পারবে না (যেমন: 2004-2006)।",
   [ERROR_MESSAGES.fileTooBig]: "ফাইলের আকার ১০ মেগাবাইটের বেশি। ছোট ফাইল দিন।",
   [ERROR_MESSAGES.wrongFileType]: "শুধুমাত্র PDF, JPG বা PNG ফাইল আপলোড করা যাবে।",
   [ERROR_MESSAGES.uploadFailed]:

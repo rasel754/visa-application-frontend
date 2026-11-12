@@ -264,7 +264,7 @@ export const FIELD_TRANSLATIONS_BN: Record<string, FieldTranslationBn> = {
   applicant_name: {
     label: "আবেদনকারীর পূর্ণ নাম",
     placeholder: "পাসপোর্ট অনুযায়ী ইংরেজিতে আপনার পূর্ণ নাম লিখুন",
-    helpText: "পাসপোর্টে থাকা ইংরেজি বানান লিখুন (সংখ্যা ছাড়া, স্বয়ংক্রিয়ভাবে বড় হাতের হবে)।",
+    helpText: "পাসপোর্টে থাকা ইংরেজি বানান লিখুন (সংখ্যা ছাড়া সর্বোচ্চ ৬০ অক্ষর, স্বয়ংক্রিয়ভাবে বড় হাতের হবে)।",
   },
   // Personal Information
   surname: {
@@ -401,7 +401,8 @@ export const FIELD_TRANSLATIONS_BN: Record<string, FieldTranslationBn> = {
   // Educational Information
   high_school_years: {
     label: "সময়কাল — শুরু থেকে শেষ",
-    placeholder: "উদাহরণ: 2012 - 2014",
+    placeholder: "উদাহরণ: 2004-2006",
+    helpText: "YYYY-YYYY ফরম্যাটে লিখুন (যেমন: 2004-2006)।",
   },
   high_school_institution: {
     label: "প্রতিষ্ঠানের নাম",
@@ -413,7 +414,8 @@ export const FIELD_TRANSLATIONS_BN: Record<string, FieldTranslationBn> = {
   },
   college_years: {
     label: "সময়কাল — শুরু থেকে শেষ",
-    placeholder: "উদাহরণ: 2014 - 2016",
+    placeholder: "উদাহরণ: 2004-2006",
+    helpText: "YYYY-YYYY ফরম্যাটে লিখুন (যেমন: 2004-2006)।",
   },
   college_institution: {
     label: "প্রতিষ্ঠানের নাম",
@@ -425,7 +427,8 @@ export const FIELD_TRANSLATIONS_BN: Record<string, FieldTranslationBn> = {
   },
   last_education_years: {
     label: "সময়কাল — শুরু থেকে শেষ",
-    placeholder: "উদাহরণ: 2017 - 2021",
+    placeholder: "উদাহরণ: 2004-2006",
+    helpText: "YYYY-YYYY ফরম্যাটে লিখুন (যেমন: 2004-2006)।",
   },
   last_education_institution: {
     label: "প্রতিষ্ঠানের নাম",
@@ -515,7 +518,7 @@ export const FIELD_TRANSLATIONS_BN: Record<string, FieldTranslationBn> = {
   intended_departure_date: {
     label: "ফেরার তারিখ",
     placeholder: "ট্যাপ করে ফেরার তারিখ বেছে নিন",
-    helpText: "অবশ্যই পৌঁছানোর তারিখের পরের তারিখ হতে হবে।",
+    helpText: "ঐচ্ছিক। দিলে অবশ্যই পৌঁছানোর তারিখের পরের তারিখ হতে হবে।",
   },
   duration_of_stay_days: {
     label: "সর্বোচ্চ অবস্থানের দিন",
@@ -721,6 +724,7 @@ export const FIELD_TRANSLATIONS_BN: Record<string, FieldTranslationBn> = {
   employer_name: {
     label: "প্রতিষ্ঠান / নিয়োগকর্তার নাম",
     placeholder: "আপনার প্রতিষ্ঠান বা কোম্পানির পূর্ণ নাম লিখুন",
+    helpText: "সংখ্যা ছাড়া সর্বোচ্চ ৫০ অক্ষরের মধ্যে লিখুন।",
   },
   employer_address: {
     label: "প্রতিষ্ঠানের ঠিকানা",
