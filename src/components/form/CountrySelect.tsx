@@ -2,7 +2,13 @@
 
 import { CheckCircle2, Globe } from "lucide-react";
 import { Combobox, ComboboxOption } from "@/components/ui/combobox";
+import {
+  getLocalizedCountryName,
+  getLocalizedRegionName,
+} from "@/lib/field-helpers";
+import { getUiStrings } from "@/lib/i18n/translations";
 import { CountrySummary } from "@/lib/types";
+import { useLanguageStore } from "@/store/language-store";
 
 interface CountrySelectProps {
   countries: CountrySummary[];
@@ -17,12 +23,19 @@ export function CountrySelect({
   onSelectCountry,
   locked = false,
 }: CountrySelectProps) {
-  const options: ComboboxOption[] = countries.map((c) => ({
-    value: c.country_code,
-    label: c.country,
-    hint: c.region,
-    keywords: [c.country_code, c.region],
-  }));
+  const language = useLanguageStore((s) => s.language);
+  const t = getUiStrings(language);
+
+  const options: ComboboxOption[] = countries.map((c) => {
+    const bnName = getLocalizedCountryName(c.country_code, c.country, "bn");
+    const bnRegion = getLocalizedRegionName(c.region, "bn");
+    return {
+      value: c.country_code,
+      label: getLocalizedCountryName(c.country_code, c.country, language),
+      hint: getLocalizedRegionName(c.region, language),
+      keywords: [c.country, bnName, c.country_code, c.region, bnRegion],
+    };
+  });
 
   const selected = countries.find(
     (c) =>
@@ -34,14 +47,9 @@ export function CountrySelect({
     <div className="space-y-5">
       <div className="space-y-1">
         <h2 className="text-2xl font-bold text-slate-900">
-          Which country do you want to visit?
+          {t.countrySelect.title}
         </h2>
-        <p className="text-base text-slate-600">
-          Tap the box below and type the country name to search and select.
-        </p>
-        <p className="text-sm font-medium text-blue-800">
-          আপনি কোন দেশে ভ্রমণ করতে চান তা নিচের বক্সে লিখে খুঁজে বের করুন।
-        </p>
+        <p className="text-base text-slate-600">{t.countrySelect.subtitle}</p>
       </div>
 
       <div className="space-y-3">
@@ -50,9 +58,9 @@ export function CountrySelect({
           options={options}
           value={selected?.country_code ?? ""}
           disabled={locked}
-          placeholder="Select your destination country"
-          searchPlaceholder="Type country name (e.g. Malaysia, India, UAE)..."
-          emptyText="No country found. Please check the spelling."
+          placeholder={t.countrySelect.placeholder}
+          searchPlaceholder={t.countrySelect.searchPlaceholder}
+          emptyText={t.countrySelect.emptyText}
           onValueChange={(code) => {
             const matched = countries.find(
               (c) => c.country_code.toUpperCase() === code.toUpperCase(),
@@ -73,13 +81,18 @@ export function CountrySelect({
             </div>
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                Selected Destination
+                {t.countrySelect.selectedLabel}
               </p>
               <p className="truncate text-lg font-bold text-slate-900">
-                {selected.country}
+                {getLocalizedCountryName(
+                  selected.country_code,
+                  selected.country,
+                  language,
+                )}
               </p>
               <p className="truncate text-sm text-slate-600">
-                {selected.region} • Visit / Tourist Visa
+                {getLocalizedRegionName(selected.region, language)} •{" "}
+                {t.countrySelect.visitVisaLabel}
               </p>
             </div>
           </div>
@@ -90,7 +103,7 @@ export function CountrySelect({
         </div>
       ) : (
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
-          100 countries available. Tap above and start typing the country name.
+          {t.countrySelect.availableHint}
         </div>
       )}
     </div>

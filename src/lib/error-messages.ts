@@ -1,3 +1,5 @@
+import { FormLanguage } from "@/store/language-store";
+
 export function toSimpleFieldName(label: string): string {
   const withoutDashNote = label.replace(/\s*—\s*repeating table\s*$/i, "");
   const withoutParens = withoutDashNote
@@ -69,7 +71,7 @@ const EXACT_BANGLA_ERRORS: Record<string, string> = {
   [ERROR_MESSAGES.wrongEmail]: "ইমেইল ঠিকানাটি সঠিক নয়। দয়া করে আবার যাচাই করুন।",
   [ERROR_MESSAGES.wrongPhone]: "সঠিক ফোন নম্বর লিখুন।",
   [ERROR_MESSAGES.invalidBdPhone]:
-    "সঠিক বাংলাদেশি মোবাইল নম্বর দিন (01 দিয়ে শুরু 11 ডিজিট)।",
+    "সঠিক বাংলাদেশি মোবাইল নম্বর দিন (01 দিয়ে শুরু ১১ ডিজিট)।",
   [ERROR_MESSAGES.passportLength]: "পাসপোর্ট নম্বর ঠিক ৯ অক্ষরের হতে হবে।",
   [ERROR_MESSAGES.tuitionInvalid]:
     "টিউশন ফি শুধু সংখ্যায় হতে হবে (সর্বোচ্চ ৮ ডিজিট)।",
@@ -103,13 +105,13 @@ const EXACT_BANGLA_ERRORS: Record<string, string> = {
   [ERROR_MESSAGES.otpWrong]:
     "কোডটি ভুল হয়েছে। ৬ ডিজিটের কোডটি মিলিয়ে আবার লিখুন।",
   [ERROR_MESSAGES.otpExpired]:
-    "কোডের মেয়াদ শেষ হয়েছে — নতুন কোড পেতে Resend চাপুন।",
+    'কোডের মেয়াদ শেষ হয়েছে — নতুন কোড পেতে "পুনরায় কোড পাঠান" চাপুন।',
   [ERROR_MESSAGES.otpTooManyAttempts]:
-    "অনেকবার ভুল কোড দেওয়া হয়েছে। নতুন কোড পেতে Resend চাপুন।",
+    'অনেকবার ভুল কোড দেওয়া হয়েছে। নতুন কোড পেতে "পুনরায় কোড পাঠান" চাপুন।',
   [ERROR_MESSAGES.otpTooManySends]:
     "বারবার কোড চাওয়া হয়েছে। ১৫ মিনিট পর আবার চেষ্টা করুন।",
   [ERROR_MESSAGES.otpUnavailable]:
-    "এই মুহূর্তে ফোন যাচাই সেবা চালু নেই। IGL Visa Help অফিসে যোগাযোগ করুন।",
+    "এই মুহূর্তে ফোন যাচাই সেবা চালু নেই। আইজিএল ভিসা হেল্প অফিসে যোগাযোগ করুন।",
   [ERROR_MESSAGES.otpSmsFailed]:
     "কোড পাঠানো যায়নি। কিছুক্ষণ পর আবার চেষ্টা করুন।",
   [ERROR_MESSAGES.otpPhoneMismatch]:
@@ -125,19 +127,54 @@ const EXACT_BANGLA_ERRORS: Record<string, string> = {
   [ERROR_MESSAGES.serverError]:
     "আমাদের সার্ভারে সমস্যা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।",
   [ERROR_MESSAGES.formNotFound]:
-    "এই লিংকটি সঠিক নয়। অনুগ্রহ করে IGL Visa Help অফিসে যোগাযোগ করুন।",
+    "এই লিংকটি সঠিক নয়। অনুগ্রহ করে আইজিএল ভিসা হেল্প অফিসে যোগাযোগ করুন।",
+  [ERROR_MESSAGES.loginTooManyTries]:
+    "অনেকবার চেষ্টা করা হয়েছে। অনুগ্রহ করে ১৫ মিনিট পর আবার চেষ্টা করুন।",
+  [ERROR_MESSAGES.sessionExpired]:
+    "আপনার সেশন শেষ হয়ে গেছে। অনুগ্রহ করে আবার লগইন করুন।",
+  "Please write a valid number.": "অনুগ্রহ করে একটি সঠিক সংখ্যা লিখুন।",
+  "Please choose a valid date.": "অনুগ্রহ করে একটি সঠিক তারিখ বেছে নিন।",
+  "Please choose your destination country first.":
+    "অনুগ্রহ করে প্রথমে আপনার গন্তব্য দেশ নির্বাচন করুন।",
+  "Please choose your profession to continue.":
+    "পরবর্তী ধাপে যেতে অনুগ্রহ করে আপনার পেশা নির্বাচন করুন।",
+  "Please fix the marked boxes before saving.":
+    "সংরক্ষণ করার আগে লাল চিহ্নিত ঘরগুলো ঠিক করুন।",
+  "Could not load form details for this country.":
+    "এই দেশের ফর্মের তথ্য লোড করা যায়নি।",
 };
 
-export function getBanglaError(message: string | null | undefined): string | null {
+export function getBanglaError(
+  message: string | null | undefined,
+  localizedItemLabel?: string,
+): string | null {
   if (!message) return null;
   if (EXACT_BANGLA_ERRORS[message]) {
     return EXACT_BANGLA_ERRORS[message];
   }
   if (message.startsWith("Please write your ")) {
+    if (localizedItemLabel) {
+      return `অনুগ্রহ করে "${localizedItemLabel}" সঠিকভাবে লিখুন।`;
+    }
     return "অনুগ্রহ করে এই তথ্যটি সঠিকভাবে লিখুন।";
   }
   if (message.startsWith("Please give your ")) {
+    if (localizedItemLabel) {
+      return `অনুগ্রহ করে "${localizedItemLabel}" আপলোড করুন।`;
+    }
     return "অনুগ্রহ করে এই কাগজটি আপলোড করুন।";
   }
   return null;
+}
+
+export function localizeErrorMessage(
+  message: string | null | undefined,
+  language: FormLanguage,
+  localizedItemLabel?: string,
+): string {
+  if (!message) return "";
+  if (language === "bn") {
+    return getBanglaError(message, localizedItemLabel) ?? message;
+  }
+  return message;
 }

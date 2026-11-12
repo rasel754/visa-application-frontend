@@ -3,10 +3,13 @@
 import * as React from "react";
 import { format } from "date-fns";
 import { CalendarIcon, X } from "lucide-react";
+import { bn as rdpBn } from "react-day-picker/locale";
 import { cn } from "cn";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { BANGLA_MONTHS, toBanglaDigits } from "@/lib/i18n/bangla-data";
+import { FormLanguage } from "@/store/language-store";
 
 export type DateFieldMode = "past" | "past-or-today" | "future" | "any";
 
@@ -23,6 +26,7 @@ interface DatePickerProps {
   disabled?: boolean;
   invalid?: boolean;
   allowClear?: boolean;
+  language?: FormLanguage;
   className?: string;
 }
 
@@ -58,7 +62,7 @@ export function DatePicker({
   value,
   onChange,
   onBlur,
-  placeholder = "Select date",
+  placeholder,
   mode = "any",
   minDateYmd,
   maxDateYmd,
@@ -66,8 +70,11 @@ export function DatePicker({
   disabled = false,
   invalid = false,
   allowClear = false,
+  language = "en",
   className,
 }: DatePickerProps) {
+  const effectivePlaceholder =
+    placeholder ?? (language === "bn" ? "তারিখ নির্বাচন করুন" : "Select date");
   const [open, setOpen] = React.useState(false);
 
   const selectedDate = React.useMemo(() => parseYmdToLocalDate(value), [value]);
@@ -159,9 +166,15 @@ export function DatePicker({
             <CalendarIcon className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
             <span className="truncate text-slate-900">
               {selectedDate ? (
-                format(selectedDate, "dd MMM yyyy")
+                language === "bn" ? (
+                  `${toBanglaDigits(String(selectedDate.getDate()).padStart(2, "0"))} ${
+                    BANGLA_MONTHS[selectedDate.getMonth()] ?? ""
+                  } ${toBanglaDigits(selectedDate.getFullYear())}`
+                ) : (
+                  format(selectedDate, "dd MMM yyyy")
+                )
               ) : (
-                <span className="text-slate-400">{placeholder}</span>
+                <span className="text-slate-400">{effectivePlaceholder}</span>
               )}
             </span>
           </span>
@@ -169,7 +182,7 @@ export function DatePicker({
             <span
               role="button"
               tabIndex={0}
-              aria-label="Clear date"
+              aria-label={language === "bn" ? "তারিখ মুছুন" : "Clear date"}
               onClick={(e) => {
                 e.stopPropagation();
                 onChange("");
@@ -199,6 +212,16 @@ export function DatePicker({
           startMonth={startMonth}
           endMonth={endMonth}
           disabled={isDateDisabled}
+          locale={language === "bn" ? rdpBn : undefined}
+          numerals={language === "bn" ? "beng" : undefined}
+          formatters={
+            language === "bn"
+              ? {
+                  formatMonthDropdown: (date) =>
+                    BANGLA_MONTHS[date.getMonth()] ?? "",
+                }
+              : undefined
+          }
           onSelect={(date) => {
             if (!date) return;
             onChange(formatLocalDateToYmd(date));

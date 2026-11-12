@@ -12,9 +12,16 @@ import {
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getBanglaError } from "@/lib/error-messages";
+import { localizeErrorMessage } from "@/lib/error-messages";
+import {
+  getLocalizedDocumentLabel,
+  getLocalizedDocumentNote,
+} from "@/lib/field-helpers";
 import { validateClientPickedFile } from "@/lib/form-validation";
+import { toBanglaDigits } from "@/lib/i18n/bangla-data";
+import { getUiStrings } from "@/lib/i18n/translations";
 import { FormDocument, UploadedDocumentEntry } from "@/lib/types";
+import { FormLanguage, useLanguageStore } from "@/store/language-store";
 
 interface DocumentUploadCardProps {
   document: FormDocument;
@@ -25,10 +32,12 @@ interface DocumentUploadCardProps {
   onLocalError: (docKey: string, message: string | null) => void;
 }
 
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+function formatFileSize(bytes: number, language: FormLanguage): string {
+  let formatted: string;
+  if (bytes < 1024) formatted = `${bytes} B`;
+  else if (bytes < 1024 * 1024) formatted = `${(bytes / 1024).toFixed(1)} KB`;
+  else formatted = `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+  return language === "bn" ? toBanglaDigits(formatted) : formatted;
 }
 
 export function DocumentUploadCard({
@@ -39,15 +48,23 @@ export function DocumentUploadCard({
   onRemoveFile,
   onLocalError,
 }: DocumentUploadCardProps) {
+  const language = useLanguageStore((s) => s.language);
+  const t = getUiStrings(language);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  const docLabel = getLocalizedDocumentLabel(document, language);
+  const docNote = getLocalizedDocumentNote(document, language);
+  const localizedError = error
+    ? localizeErrorMessage(error, language, docLabel)
+    : "";
 
   const handleFilePicked = (file: File | undefined) => {
     if (!file) return;
     const validationErr = validateClientPickedFile(file);
     if (validationErr) {
       onLocalError(document.key, validationErr);
-      toast.error(validationErr);
+      toast.error(localizeErrorMessage(validationErr, language, docLabel));
       return;
     }
 
@@ -100,20 +117,18 @@ export function DocumentUploadCard({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 flex-1 space-y-1">
           <p className="text-base font-semibold leading-snug text-slate-900">
-            {document.label}
+            {docLabel}
             {document.required ? (
-              <span className="ml-1 text-red-600" aria-label="required">
+              <span className="ml-1 text-red-600" aria-label={t.requiredAria}>
                 *
               </span>
             ) : (
               <span className="ml-1.5 text-sm font-normal text-slate-500">
-                (Optional)
+                {t.optionalTag}
               </span>
             )}
           </p>
-          {document.note && (
-            <p className="text-sm text-slate-600">{document.note}</p>
-          )}
+          {docNote && <p className="text-sm text-slate-600">{docNote}</p>}
         </div>
 
         {document.required ? (
@@ -121,14 +136,14 @@ export function DocumentUploadCard({
             variant="outline"
             className="shrink-0 border-amber-300 bg-amber-50 text-amber-900"
           >
-            Must give
+            {t.documentCard.mustGiveBadge}
           </Badge>
         ) : (
           <Badge
             variant="outline"
             className="shrink-0 border-slate-200 bg-slate-50 text-slate-600"
           >
-            Optional
+            {t.documentCard.optionalBadge}
           </Badge>
         )}
       </div>
@@ -152,13 +167,13 @@ export function DocumentUploadCard({
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 text-sm font-semibold text-emerald-700">
                 <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>Ready to send</span>
+                <span>{t.documentCard.readyToSend}</span>
               </div>
               <p className="truncate text-sm font-medium text-slate-900">
                 {entry.file.name}
               </p>
               <p className="text-xs text-slate-500">
-                {formatFileSize(entry.file.size)}
+                {formatFileSize(entry.file.size, language)}
               </p>
             </div>
           </div>
@@ -171,7 +186,7 @@ export function DocumentUploadCard({
               className="h-11 flex-1 border-slate-300 text-sm font-medium sm:flex-initial"
             >
               <RefreshCw className="mr-1.5 h-4 w-4" aria-hidden="true" />
-              Replace
+              {t.documentCard.replace}
             </Button>
             <Button
               type="button"
@@ -180,7 +195,7 @@ export function DocumentUploadCard({
               className="h-11 flex-1 border-red-200 text-sm font-medium text-red-700 hover:bg-red-50 sm:flex-initial"
             >
               <Trash2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
-              Remove
+              {t.documentCard.remove}
             </Button>
           </div>
         </div>
@@ -193,29 +208,23 @@ export function DocumentUploadCard({
             className="h-12 w-full border-blue-300 bg-white text-base font-semibold text-blue-800 hover:bg-blue-50 sm:w-auto sm:px-6"
           >
             <Upload className="mr-2 h-5 w-5" aria-hidden="true" />
-            Choose File (Photo or PDF)
+            {t.documentCard.chooseFileButton}
           </Button>
           <p className="mt-2 text-xs text-slate-500">
-            Or drag and drop here. Only PDF, JPG, or PNG — max 10 MB.
+            {t.documentCard.dragAndDropHint}
           </p>
         </div>
       )}
 
-      {error && (
+      {localizedError && (
         <div
           role="alert"
           className="mt-3 flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700"
         >
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <div className="space-y-0.5">
-            <p>{error}</p>
-            {getBanglaError(error) && (
-              <p className="text-xs font-normal text-red-800">{getBanglaError(error)}</p>
-            )}
-          </div>
+          <p>{localizedError}</p>
         </div>
       )}
     </div>
   );
 }
-

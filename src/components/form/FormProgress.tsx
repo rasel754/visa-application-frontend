@@ -2,6 +2,8 @@
 
 import { Check } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { getUiStrings } from "@/lib/i18n/translations";
+import { useLanguageStore } from "@/store/language-store";
 
 interface FormProgressProps {
   steps: string[];
@@ -16,6 +18,9 @@ export function FormProgress({
   onSelectStep,
   maxReachableIndex,
 }: FormProgressProps) {
+  const language = useLanguageStore((s) => s.language);
+  const t = getUiStrings(language);
+
   const total = steps.length;
   const currentStepNumber = Math.min(currentIndex + 1, total);
   const percent = total > 0 ? Math.round((currentStepNumber / total) * 100) : 0;
@@ -25,9 +30,11 @@ export function FormProgress({
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-medium text-slate-700">
         <span className="text-base font-semibold text-slate-900">
-          Step {currentStepNumber} of {total}: {currentName}
+          {t.progress.stepOf(currentStepNumber, total, currentName)}
         </span>
-        <span className="text-xs font-semibold text-blue-700">{percent}%</span>
+        <span className="text-xs font-semibold text-blue-700">
+          {t.progress.percent(percent)}
+        </span>
       </div>
 
       <Progress value={percent} className="mt-3 h-2.5 bg-slate-100" />
@@ -61,4 +68,3 @@ export function FormProgress({
     </div>
   );
 }
-

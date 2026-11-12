@@ -25,10 +25,15 @@ import { useCountries } from "@/hooks/useCountries";
 import { useVisitForm } from "@/hooks/useVisitForm";
 import { ApiRequestError, api } from "@/lib/api";
 import { normalizeBdMobileInput } from "@/lib/bd-validation";
-import { ERROR_MESSAGES } from "@/lib/error-messages";
+import { ERROR_MESSAGES, localizeErrorMessage } from "@/lib/error-messages";
 import {
   formatProfessionLabel,
-  getSectionIntro,
+  getLocalizedCountryName,
+  getLocalizedDocumentLabel,
+  getLocalizedFieldLabel,
+  getLocalizedSectionIntro,
+  getLocalizedSectionName,
+  getLocalizedVisaName,
   groupFieldsBySection,
 } from "@/lib/field-helpers";
 import {
@@ -37,6 +42,7 @@ import {
   validateFullApplication,
   validateSectionFields,
 } from "@/lib/form-validation";
+import { getUiStrings } from "@/lib/i18n/translations";
 import {
   AnswerValue,
   CountrySummary,
@@ -46,6 +52,7 @@ import {
   UploadedDocumentEntry,
 } from "@/lib/types";
 import { useIntakeStore } from "@/store/intake-store";
+import { useLanguageStore } from "@/store/language-store";
 
 interface SectionWizardProps {
   intakeToken?: string;
@@ -53,6 +60,8 @@ interface SectionWizardProps {
 
 export function SectionWizard({ intakeToken }: SectionWizardProps) {
   const router = useRouter();
+  const language = useLanguageStore((s) => s.language);
+  const t = getUiStrings(language);
 
   const {
     countryCode,
@@ -247,16 +256,16 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
 
   const stepNames = useMemo(() => {
     if (!visitForm || !profession) {
-      return ["Country", "Profession"];
+      return [t.progress.stepCountry, t.progress.stepProfession];
     }
     return [
-      "Country",
-      "Profession",
-      ...sections.map((s) => s.section),
-      "Documents",
-      "Check & Send",
+      t.progress.stepCountry,
+      t.progress.stepProfession,
+      ...sections.map((s) => getLocalizedSectionName(s.section, language)),
+      t.progress.stepDocuments,
+      t.progress.stepReview,
     ];
-  }, [visitForm, profession, sections]);
+  }, [visitForm, profession, sections, language, t]);
 
   const sectionStartIndex = 2;
   const documentsStepIndex = sectionStartIndex + sections.length;
@@ -372,9 +381,9 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
 
   const getLabelForKey = (key: string): string => {
     const field = allFields.find((f) => f.key === key);
-    if (field) return field.label;
+    if (field) return getLocalizedFieldLabel(field, language);
     const doc = allDocuments.find((d) => d.key === key);
-    if (doc) return doc.label;
+    if (doc) return getLocalizedDocumentLabel(doc, language);
     return key;
   };
 
@@ -404,9 +413,9 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
 
     if (safeStepIndex === 0) {
       if (!selectedCountry) {
-        const msg = "Please choose your destination country first.";
-        setTopErrorTitle(msg);
-        toast.error(msg);
+        const canonicalMsg = "Please choose your destination country first.";
+        setTopErrorTitle(canonicalMsg);
+        toast.error(t.wizard.chooseCountryFirst);
         scrollToTop();
         return;
       }
@@ -417,9 +426,9 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
 
     if (safeStepIndex === 1) {
       if (!profession || !visitForm) {
-        const msg = "Please choose your profession to continue.";
-        setTopErrorTitle(msg);
-        toast.error(msg);
+        const canonicalMsg = "Please choose your profession to continue.";
+        setTopErrorTitle(canonicalMsg);
+        toast.error(t.wizard.chooseProfessionFirst);
         scrollToTop();
         return;
       }
@@ -438,7 +447,9 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
         if (Object.keys(errors).length > 0) {
           setFieldErrors((prev) => ({ ...prev, ...errors }));
           setTopErrorTitle(ERROR_MESSAGES.genericValidation);
-          toast.error(ERROR_MESSAGES.genericValidation);
+          toast.error(
+            localizeErrorMessage(ERROR_MESSAGES.genericValidation, language),
+          );
           const firstKey = Object.keys(errors)[0];
           if (firstKey) scrollToField(firstKey);
           return;
@@ -454,7 +465,9 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
       if (Object.keys(docErrors).length > 0) {
         setFieldErrors((prev) => ({ ...prev, ...docErrors }));
         setTopErrorTitle(ERROR_MESSAGES.genericValidation);
-        toast.error(ERROR_MESSAGES.genericValidation);
+        toast.error(
+          localizeErrorMessage(ERROR_MESSAGES.genericValidation, language),
+        );
         const firstKey = Object.keys(docErrors)[0];
         if (firstKey) scrollToField(firstKey);
         return;
@@ -499,7 +512,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
       resetDraft();
       setOtpStage(null);
       setVerifiedOtpToken(null);
-      toast.success("Application sent successfully!");
+      toast.success(t.wizard.applicationSentToast);
       router.push("/apply/success");
       return true;
     } catch (err: unknown) {
@@ -507,7 +520,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
         if (err.status === 401 || err.message === ERROR_MESSAGES.otpAlreadyUsed) {
           setVerifiedOtpToken(null);
           setOtpError(err.message);
-          toast.error(err.message);
+          toast.error(localizeErrorMessage(err.message, language));
           return false;
         }
         if (Object.keys(err.fieldErrors).length > 0) {
@@ -515,11 +528,11 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
         }
         setOtpStage(null);
         setTopErrorTitle(err.message);
-        toast.error(err.message);
+        toast.error(localizeErrorMessage(err.message, language));
         scrollToTop();
       } else {
         setOtpError(ERROR_MESSAGES.serverError);
-        toast.error(ERROR_MESSAGES.serverError);
+        toast.error(localizeErrorMessage(ERROR_MESSAGES.serverError, language));
       }
       return false;
     } finally {
@@ -531,9 +544,14 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     if (!visitForm || !countryCode || !profession) return;
 
     if (editingReviewSection) {
-      const msg = `Please tap Save or Cancel on "${editingReviewSection}" before submitting.`;
-      toast.error(msg);
-      const secEl = document.getElementById(`review-section-${editingReviewSection}`);
+      const localizedSec = getLocalizedSectionName(
+        editingReviewSection,
+        language,
+      );
+      toast.error(t.wizard.finishEditingSectionFirst(localizedSec));
+      const secEl = document.getElementById(
+        `review-section-${editingReviewSection}`,
+      );
       if (secEl) {
         secEl.scrollIntoView({ behavior: "smooth", block: "center" });
       }
@@ -549,7 +567,9 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     if (Object.keys(allErrors).length > 0) {
       setFieldErrors(allErrors);
       setTopErrorTitle(ERROR_MESSAGES.genericValidation);
-      toast.error(ERROR_MESSAGES.genericValidation);
+      toast.error(
+        localizeErrorMessage(ERROR_MESSAGES.genericValidation, language),
+      );
       scrollToTop();
       return;
     }
@@ -578,13 +598,13 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
         devOtp: res.devOtp ?? null,
         sendSeq: (prev?.sendSeq ?? 0) + 1,
       }));
-      toast.success("Verification code sent to your mobile number.");
+      toast.success(t.wizard.otpSentToast);
       scrollToTop();
     } catch (err: unknown) {
       const msg =
         err instanceof ApiRequestError ? err.message : ERROR_MESSAGES.serverError;
       setTopErrorTitle(msg);
-      toast.error(msg);
+      toast.error(localizeErrorMessage(msg, language));
       scrollToTop();
     } finally {
       setIsSendingOtp(false);
@@ -608,12 +628,12 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
             }
           : null,
       );
-      toast.success("New verification code sent.");
+      toast.success(t.wizard.otpResentToast);
     } catch (err: unknown) {
       const msg =
         err instanceof ApiRequestError ? err.message : ERROR_MESSAGES.serverError;
       setOtpError(msg);
-      toast.error(msg);
+      toast.error(localizeErrorMessage(msg, language));
     } finally {
       setIsSendingOtp(false);
     }
@@ -635,7 +655,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
       const msg =
         err instanceof ApiRequestError ? err.message : ERROR_MESSAGES.serverError;
       setOtpError(msg);
-      toast.error(msg);
+      toast.error(localizeErrorMessage(msg, language));
       setIsSubmitting(false);
     }
   };
@@ -659,7 +679,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
         <Loader2 className="h-9 w-9 animate-spin text-blue-700" />
         <p className="text-base font-medium text-slate-700">
-          Loading your application form...
+          {t.wizard.loadingForm}
         </p>
       </div>
     );
@@ -681,7 +701,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
             onClick={() => router.push("/")}
             className="h-12 px-6 text-base"
           >
-            Back to Home
+            {t.wizard.backToHome}
           </Button>
         </div>
       </div>
@@ -692,14 +712,9 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     return (
       <div className="mx-auto max-w-xl rounded-2xl border-2 border-blue-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-2xl font-bold text-slate-900">
-          Continue your saved form?
+          {t.wizard.resumeTitle}
         </h2>
-        <p className="mt-2 text-base text-slate-600">
-          We found answers you wrote earlier on this device. Would you like to continue where you stopped, or start a new form?
-        </p>
-        <p className="mt-2 text-sm font-medium text-blue-800">
-          এই ফোনে/কম্পিউটারে আপনার আগের লেখা তথ্য সংরক্ষিত আছে। আপনি কি সেখান থেকেই শুরু করতে চান, নাকি নতুন করে শুরু করবেন?
-        </p>
+        <p className="mt-2 text-base text-slate-600">{t.wizard.resumeBody}</p>
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <Button
             type="button"
@@ -707,7 +722,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
             className="h-12 flex-1 bg-blue-700 text-base font-semibold hover:bg-blue-800"
           >
             <CheckCircle2 className="mr-2 h-5 w-5" aria-hidden="true" />
-            Continue
+            {t.wizard.resumeContinue}
           </Button>
           <Button
             type="button"
@@ -716,7 +731,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
             className="h-12 flex-1 border-slate-300 text-base font-semibold"
           >
             <RotateCcw className="mr-2 h-4 w-4" aria-hidden="true" />
-            Start again
+            {t.wizard.resumeStartAgain}
           </Button>
         </div>
       </div>
@@ -785,7 +800,15 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     !(safeStepIndex === 1 && Boolean(lockedCountryCode)) &&
     !(safeStepIndex === 2 && Boolean(lockedCountryCode && lockedProfession));
 
-  const professionDisplay = profession ? formatProfessionLabel(profession) : "";
+  const professionDisplay = profession
+    ? formatProfessionLabel(profession, language)
+    : "";
+  const localizedCountry = visitForm
+    ? getLocalizedCountryName(visitForm.country_code, visitForm.country, language)
+    : "";
+  const localizedVisaName = visitForm
+    ? getLocalizedVisaName(visitForm.official_visa_name, language)
+    : "";
 
   return (
     <div className="space-y-6 pb-24 md:pb-10">
@@ -845,7 +868,9 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
         {safeStepIndex >= 2 && formLoading && (
           <div className="flex min-h-48 flex-col items-center justify-center gap-3">
             <Loader2 className="h-8 w-8 animate-spin text-blue-700" />
-            <p className="text-base text-slate-600">Loading form questions...</p>
+            <p className="text-base text-slate-600">
+              {t.wizard.loadingQuestions}
+            </p>
           </div>
         )}
 
@@ -863,19 +888,20 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
           <div className="space-y-6">
             <div className="space-y-1 border-b border-slate-100 pb-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                {visitForm.country} — {visitForm.official_visa_name} • {professionDisplay}
+                {localizedCountry} — {localizedVisaName} • {professionDisplay}
               </p>
               <h2 className="text-2xl font-bold text-slate-900">
-                {currentSectionGroup.section}
+                {getLocalizedSectionName(currentSectionGroup.section, language)}
               </h2>
               <p className="text-base text-slate-600">
-                {getSectionIntro(currentSectionGroup.section).english}
-              </p>
-              <p className="text-sm font-medium text-blue-800">
-                {getSectionIntro(currentSectionGroup.section).bangla}
+                {getLocalizedSectionIntro(currentSectionGroup.section, language)}
               </p>
               <p className="pt-1 text-xs text-slate-500">
-                Boxes with <span className="font-bold text-red-600">*</span> must be filled. Boxes marked (Optional) can be left blank if not needed.
+                {t.wizard.requiredLegendBeforeStar}{" "}
+                <span className="font-bold text-red-600">*</span>{" "}
+                {t.wizard.requiredLegendMiddle}{" "}
+                <span className="font-medium">{t.optionalTag}</span>{" "}
+                {t.wizard.requiredLegendAfterOptional}
               </p>
             </div>
 
@@ -899,23 +925,19 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
           <div className="space-y-6">
             <div className="space-y-1 border-b border-slate-100 pb-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                {visitForm.country} — {visitForm.official_visa_name} • {professionDisplay}
+                {localizedCountry} — {localizedVisaName} • {professionDisplay}
               </p>
               <h2 className="text-2xl font-bold text-slate-900">
-                Upload Your Documents
+                {t.wizard.docsTitle}
               </h2>
-              <p className="text-base text-slate-600">
-                Give a photo or PDF of your papers.
-              </p>
-              <p className="text-sm font-medium text-blue-800">
-                আপনার কাগজপত্রের পরিষ্কার ছবি বা PDF দিন।
-              </p>
+              <p className="text-base text-slate-600">{t.wizard.docsSubtitle}</p>
             </div>
 
             {Object.keys(files).length === 0 && (
               <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
-                Only PDF, JPG, or PNG files are allowed (max 10 MB per file). Boxes marked{" "}
-                <span className="font-semibold">Must give</span> are required before sending.
+                {t.wizard.docsRuleNoticeBeforeBadge}{" "}
+                <span className="font-semibold">{t.wizard.docsRuleBadge}</span>{" "}
+                {t.wizard.docsRuleNoticeAfterBadge}
               </div>
             )}
 
@@ -923,11 +945,8 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
             <div className="space-y-4">
               <div className="border-b border-slate-200 pb-2">
                 <h3 className="text-lg font-bold text-slate-900">
-                  Common Documents (For All Applicants)
+                  {t.wizard.commonDocsHeading}
                 </h3>
-                <p className="text-xs font-medium text-blue-800">
-                  সকল আবেদনকারীর জন্য প্রয়োজনীয় সাধারণ কাগজপত্র
-                </p>
               </div>
               {commonDocuments.map((doc) => (
                 <DocumentUploadCard
@@ -947,11 +966,8 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
               <div className="space-y-4 pt-4">
                 <div className="border-b border-blue-200 pb-2">
                   <h3 className="text-lg font-bold text-blue-950">
-                    Additional Documents for {professionDisplay}
+                    {t.wizard.additionalDocsHeading(professionDisplay)}
                   </h3>
-                  <p className="text-xs font-medium text-blue-800">
-                    আপনার পেশা ({professionDisplay}) অনুযায়ী অতিরিক্ত কাগজপত্র
-                  </p>
                 </div>
                 {additionalDocuments.map((doc) => (
                   <DocumentUploadCard
@@ -1014,7 +1030,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
               className="h-12 min-w-28 border-slate-300 bg-white px-5 text-base font-semibold text-slate-800"
             >
               <ArrowLeft className="mr-2 h-5 w-5" aria-hidden="true" />
-              Back
+              {t.backButton}
             </Button>
           ) : (
             <div />
@@ -1030,7 +1046,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
               }
               className="h-12 flex-1 bg-blue-700 px-6 text-base font-semibold text-white hover:bg-blue-800 sm:flex-initial sm:min-w-44"
             >
-              Continue
+              {t.continueButton}
               <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
             </Button>
           ) : (
@@ -1043,12 +1059,12 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
               {isSendingOtp ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" aria-hidden="true" />
-                  Sending OTP…
+                  {t.wizard.sendingOtp}
                 </>
               ) : (
                 <>
                   <Send className="mr-2 h-5 w-5" aria-hidden="true" />
-                  Send OTP &amp; Submit
+                  {t.wizard.sendOtpAndSubmit}
                 </>
               )}
             </Button>

@@ -9,8 +9,16 @@ import {
   Loader2,
 } from "lucide-react";
 import { FriendlyError } from "@/components/form/FriendlyError";
-import { getProfessionBanglaDescription } from "@/lib/field-helpers";
+import {
+  formatProfessionLabel,
+  getLocalizedCountryName,
+  getLocalizedOfficialForm,
+  getLocalizedProfessionDescription,
+  getLocalizedVisaName,
+} from "@/lib/field-helpers";
+import { getUiStrings } from "@/lib/i18n/translations";
 import { CountrySummary, ProfessionKey, VisitForm } from "@/lib/types";
+import { useLanguageStore } from "@/store/language-store";
 
 interface ProfessionSelectProps {
   country: CountrySummary;
@@ -39,12 +47,20 @@ export function ProfessionSelect({
   onSelectProfession,
   locked = false,
 }: ProfessionSelectProps) {
+  const language = useLanguageStore((s) => s.language);
+  const t = getUiStrings(language);
+  const localizedCountryName = getLocalizedCountryName(
+    country.country_code,
+    country.country,
+    language,
+  );
+
   if (isLoading) {
     return (
       <div className="flex min-h-48 flex-col items-center justify-center gap-3">
         <Loader2 className="h-8 w-8 animate-spin text-blue-700" />
         <p className="text-base text-slate-600">
-          Loading {country.country} visit visa requirements...
+          {t.professionSelect.loadingForCountry(localizedCountryName)}
         </p>
       </div>
     );
@@ -53,10 +69,24 @@ export function ProfessionSelect({
   if (errorMessage || !visitForm) {
     return (
       <FriendlyError
-        title={errorMessage ?? "Could not load form details for this country."}
+        title={errorMessage ?? t.professionSelect.loadFailedFallback}
       />
     );
   }
+
+  const formCountryName = getLocalizedCountryName(
+    visitForm.country_code,
+    visitForm.country,
+    language,
+  );
+  const localizedVisaName = getLocalizedVisaName(
+    visitForm.official_visa_name,
+    language,
+  );
+  const localizedOfficialForm = getLocalizedOfficialForm(
+    visitForm.official_form,
+    language,
+  );
 
   return (
     <div className="space-y-5">
@@ -68,33 +98,25 @@ export function ProfessionSelect({
           </div>
           <div className="min-w-0 space-y-1">
             <p className="text-xs font-bold uppercase tracking-wide text-blue-800">
-              Visit / Tourist Visa — {visitForm.country}
+              {t.professionSelect.bannerPrefix} — {formCountryName}
             </p>
             <p className="text-lg font-bold text-slate-900">
-              {visitForm.official_visa_name}
+              {localizedVisaName}
             </p>
-            {visitForm.official_form && (
+            {localizedOfficialForm && (
               <p className="text-xs text-slate-600">
-                Official form: {visitForm.official_form}
+                {t.professionSelect.officialFormPrefix} {localizedOfficialForm}
               </p>
             )}
-            <p className="pt-0.5 text-sm font-medium text-blue-900">
-              এই আবেদনটি ভিজিট / ট্যুরিস্ট ভিসার জন্য। নিচ থেকে আপনার বর্তমান পেশা বেছে নিন।
-            </p>
           </div>
         </div>
       </div>
 
       <div className="space-y-1">
         <h2 className="text-2xl font-bold text-slate-900">
-          What is your current profession?
+          {t.professionSelect.title}
         </h2>
-        <p className="text-base text-slate-600">
-          Tap the card that matches what you currently do.
-        </p>
-        <p className="text-sm font-medium text-blue-800">
-          আপনি বর্তমানে কী করেন তা নিচের কার্ড থেকে বেছে নিন।
-        </p>
+        <p className="text-base text-slate-600">{t.professionSelect.subtitle}</p>
       </div>
 
       <div className="space-y-3">
@@ -127,11 +149,14 @@ export function ProfessionSelect({
                 </div>
                 <div className="min-w-0 space-y-1">
                   <p className="text-xl font-bold text-slate-900">
-                    {profile.label}
+                    {formatProfessionLabel(profKey, language)}
                   </p>
-                  <p className="text-base text-slate-700">{profile.description}</p>
-                  <p className="text-sm font-medium text-blue-800">
-                    {getProfessionBanglaDescription(profKey)}
+                  <p className="text-base text-slate-700">
+                    {getLocalizedProfessionDescription(
+                      profKey,
+                      profile.description,
+                      language,
+                    )}
                   </p>
                 </div>
               </div>
@@ -149,4 +174,3 @@ export function ProfessionSelect({
     </div>
   );
 }
-

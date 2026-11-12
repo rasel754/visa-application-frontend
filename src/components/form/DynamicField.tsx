@@ -26,14 +26,18 @@ import {
   isTuitionKey,
   shouldUppercaseField,
 } from "@/lib/bd-validation";
-import { getBanglaError } from "@/lib/error-messages";
+import { localizeErrorMessage } from "@/lib/error-messages";
 import {
   getFieldHelpText,
   getFieldPlaceholder,
-  getSelectOptions,
+  getLocalizedFieldLabel,
+  getLocalizedSelectOptions,
   getTableColumns,
 } from "@/lib/field-helpers";
+import { normalizeBengaliDigits } from "@/lib/i18n/bangla-data";
+import { getUiStrings } from "@/lib/i18n/translations";
 import { AnswerValue, FormAnswers, FormField, TableRowValue } from "@/lib/types";
+import { useLanguageStore } from "@/store/language-store";
 
 interface DynamicFieldProps {
   field: FormField;
@@ -79,6 +83,10 @@ function getDefaultFocusYear(fieldKey: string): number | undefined {
   return undefined;
 }
 
+function isDigitKeystroke(key: string): boolean {
+  return /^[\d\u09E6-\u09EF]$/.test(key);
+}
+
 function preserveCursorUppercase(
   target: HTMLInputElement | HTMLTextAreaElement,
   nextRaw: string,
@@ -107,11 +115,20 @@ export function DynamicField({
   onChange,
   onBlurValidate,
 }: DynamicFieldProps) {
+  const language = useLanguageStore((s) => s.language);
+  const t = getUiStrings(language);
+
   const inputId = `field-${field.key}`;
-  const placeholder = getFieldPlaceholder(field);
-  const helpText = getFieldHelpText(field);
-  const selectOptions = field.type === "select" ? getSelectOptions(field.key) : null;
-  const banglaError = getBanglaError(error);
+  const localizedLabel = getLocalizedFieldLabel(field, language);
+  const placeholder = getFieldPlaceholder(field, language);
+  const helpText = getFieldHelpText(field, language);
+  const selectOptions =
+    field.type === "select"
+      ? getLocalizedSelectOptions(field.key, language)
+      : null;
+  const localizedError = error
+    ? localizeErrorMessage(error, language, localizedLabel)
+    : "";
 
   const stringValue =
     typeof value === "string"
@@ -121,7 +138,7 @@ export function DynamicField({
         : "";
 
   const renderControl = () => {
-    // 1. Date fields -> Popover + Calendar DatePicker (DD MMM YYYY display, ISO YYYY-MM-DD stored)
+    // 1. Date fields -> Popover + Calendar DatePicker (ISO YYYY-MM-DD stored)
     if (field.type === "date") {
       const mode = getDateModeForField(field.key);
       let minDateYmd: string | undefined;
@@ -153,6 +170,7 @@ export function DynamicField({
           defaultFocusYear={getDefaultFocusYear(field.key)}
           invalid={Boolean(error)}
           allowClear={!field.required}
+          language={language}
         />
       );
     }
@@ -162,7 +180,7 @@ export function DynamicField({
       const localDigits = extractBdMobileLocalPart(stringValue);
 
       const handleBdPhoneChange = (raw: string) => {
-        let digitsOnly = raw.replace(/\D/g, "");
+        let digitsOnly = normalizeBengaliDigits(raw).replace(/\D/g, "");
         if (digitsOnly.startsWith("8801") && digitsOnly.length >= 13) {
           digitsOnly = digitsOnly.slice(2);
         }
@@ -196,7 +214,7 @@ export function DynamicField({
                 !e.ctrlKey &&
                 !e.metaKey &&
                 !e.altKey &&
-                !/^\d$/.test(e.key)
+                !isDigitKeystroke(e.key)
               ) {
                 e.preventDefault();
               }
@@ -218,7 +236,10 @@ export function DynamicField({
           inputMode="numeric"
           value={stringValue}
           onChange={(e) => {
-            const digitsOnly = e.target.value.replace(/\D/g, "");
+            const digitsOnly = normalizeBengaliDigits(e.target.value).replace(
+              /\D/g,
+              "",
+            );
             onChange(digitsOnly);
           }}
           onBlur={onBlurValidate}
@@ -228,7 +249,7 @@ export function DynamicField({
               !e.ctrlKey &&
               !e.metaKey &&
               !e.altKey &&
-              !/^\d$/.test(e.key)
+              !isDigitKeystroke(e.key)
             ) {
               e.preventDefault();
             }
@@ -268,16 +289,20 @@ export function DynamicField({
 
     // 5. Select -> Combobox if > 10 options, else shadcn Select
     if (field.type === "select" && selectOptions) {
+      const selectPlaceholder =
+        language === "bn" ? placeholder : t.chooseOptionPlaceholder;
+
       if (selectOptions.length > 10) {
         return (
           <Combobox
             id={inputId}
-            options={selectOptions.map((opt) => ({ value: opt, label: opt }))}
+            options={selectOptions}
             value={stringValue}
             onValueChange={(nextVal) => onChange(nextVal)}
             onBlur={onBlurValidate}
-            placeholder="Choose an option"
-            searchPlaceholder="Type to search options..."
+            placeholder={selectPlaceholder}
+            searchPlaceholder={t.searchOptionsPlaceholder}
+            emptyText={t.noOptionsFound}
             invalid={Boolean(error)}
           />
         );
@@ -298,12 +323,16 @@ export function DynamicField({
               error ? "border-red-500 ring-1 ring-red-500" : "border-slate-300"
             }`}
           >
-            <SelectValue placeholder="Choose an option" />
+            <SelectValue placeholder={selectPlaceholder} />
           </SelectTrigger>
           <SelectContent>
             {selectOptions.map((option) => (
-              <SelectItem key={option} value={option} className="min-h-10 text-base">
-                {option}
+              <SelectItem
+                key={option.value}
+                value={option.value}
+                className="min-h-10 text-base"
+              >
+                {option.label}
               </SelectItem>
             ))}
           </SelectContent>
@@ -313,7 +342,7 @@ export function DynamicField({
 
     // 6. Table (legacy fallback if ever present)
     if (field.type === "table") {
-      const columns = getTableColumns(field.key);
+      const columns = getTableColumns(field.key, language);
       const rows: TableRowValue[] =
         Array.isArray(value) && value.length > 0
           ? (value as TableRowValue[])
@@ -351,7 +380,7 @@ export function DynamicField({
             >
               <div className="mb-3 flex items-center justify-between gap-2">
                 <span className="text-sm font-semibold text-slate-700">
-                  Row {rowIndex + 1}
+                  {t.dynamicField.rowTitle(rowIndex + 1)}
                 </span>
                 <Button
                   type="button"
@@ -361,7 +390,7 @@ export function DynamicField({
                   className="h-9 text-red-600 hover:bg-red-50 hover:text-red-700"
                 >
                   <Trash2 className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                  Remove Row
+                  {t.dynamicField.removeRow}
                 </Button>
               </div>
 
@@ -396,22 +425,53 @@ export function DynamicField({
             className="h-11 border-blue-300 text-base font-medium text-blue-800 hover:bg-blue-50"
           >
             <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-            Add Row
+            {t.dynamicField.addRow}
           </Button>
         </div>
       );
     }
 
-    // 7. Standard inputs (text, email, tel, number)
+    // 7. Number fields -> allow English or Bengali digits, normalize to ASCII digits
+    if (field.type === "number") {
+      return (
+        <Input
+          id={inputId}
+          type="text"
+          inputMode="numeric"
+          value={stringValue}
+          onChange={(e) => {
+            const digitsOnly = normalizeBengaliDigits(e.target.value).replace(
+              /\D/g,
+              "",
+            );
+            onChange(digitsOnly);
+          }}
+          onBlur={onBlurValidate}
+          onKeyDown={(e) => {
+            if (
+              e.key.length === 1 &&
+              !e.ctrlKey &&
+              !e.metaKey &&
+              !e.altKey &&
+              !isDigitKeystroke(e.key)
+            ) {
+              e.preventDefault();
+            }
+          }}
+          placeholder={placeholder}
+          aria-invalid={Boolean(error)}
+          className={`h-12 bg-white text-base placeholder:text-slate-400 ${
+            error ? "border-red-500 ring-1 ring-red-500" : "border-slate-300"
+          }`}
+        />
+      );
+    }
+
+    // 8. Standard inputs (text, email, tel)
     const isNumericDigitsField =
       field.key === "national_id_number" || field.key === "tin_number";
     const uppercase = shouldUppercaseField(field) || field.key === "passport_number";
-    const htmlInputType =
-      field.type === "select"
-        ? "text"
-        : field.type === "number"
-          ? "number"
-          : field.type;
+    const htmlInputType = field.type === "select" ? "text" : field.type;
 
     return (
       <Input
@@ -419,9 +479,14 @@ export function DynamicField({
         type={htmlInputType}
         inputMode={isNumericDigitsField ? "numeric" : undefined}
         value={stringValue}
-        min={field.type === "number" ? 0 : undefined}
         onChange={(e) => {
-          if (uppercase) {
+          if (isNumericDigitsField) {
+            const digitsOnly = normalizeBengaliDigits(e.target.value).replace(
+              /\D/g,
+              "",
+            );
+            onChange(digitsOnly);
+          } else if (uppercase) {
             preserveCursorUppercase(e.target, e.target.value, (u) => onChange(u));
           } else {
             onChange(e.target.value);
@@ -443,14 +508,14 @@ export function DynamicField({
         htmlFor={inputId}
         className="block text-base font-semibold leading-snug text-slate-900"
       >
-        {field.label}
+        {localizedLabel}
         {field.required ? (
-          <span className="ml-1 text-red-600" aria-label="required">
+          <span className="ml-1 text-red-600" aria-label={t.requiredAria}>
             *
           </span>
         ) : (
           <span className="ml-1.5 text-sm font-normal text-slate-500">
-            (Optional)
+            {t.optionalTag}
           </span>
         )}
       </Label>
@@ -459,18 +524,13 @@ export function DynamicField({
 
       {helpText && !error && <p className="text-sm text-slate-600">{helpText}</p>}
 
-      {error && (
+      {localizedError && (
         <div
           role="alert"
           className="flex items-start gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-medium text-red-700"
         >
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <div className="space-y-0.5">
-            <p>{error}</p>
-            {banglaError && (
-              <p className="text-xs font-normal text-red-800">{banglaError}</p>
-            )}
-          </div>
+          <p>{localizedError}</p>
         </div>
       )}
     </div>
