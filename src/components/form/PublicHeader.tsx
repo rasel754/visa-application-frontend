@@ -1,7 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, ShieldCheck } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { LanguageToggle } from "@/components/form/LanguageToggle";
 import { getUiStrings } from "@/lib/i18n/translations";
 import { useLanguageStore } from "@/store/language-store";
@@ -21,9 +22,14 @@ export function PublicHeader({ mode }: PublicHeaderProps) {
         className={`mx-auto flex ${maxWidthClass} flex-wrap items-center justify-between gap-3 px-4 py-3.5`}
       >
         <Link href="/" className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-800 text-white shadow-2xs sm:h-10 sm:w-10">
-            <ShieldCheck className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
-          </div>
+          <Image
+            src="/logo.png"
+            alt="IGL Group Logo"
+            width={36}
+            height={48}
+            className="h-10 w-auto object-contain sm:h-11"
+            priority
+          />
           <div>
             <span className="block text-base font-bold tracking-tight text-slate-900 sm:text-lg">
               {t.brandName}

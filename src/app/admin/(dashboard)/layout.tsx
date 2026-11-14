@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -12,7 +13,6 @@ import {
   LogOut,
   Menu,
   ShieldAlert,
-  ShieldCheck,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -126,9 +126,14 @@ export default function AdminDashboardLayout({
             </button>
 
             <Link href="/admin" className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-800 text-white">
-                <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-              </div>
+              <Image
+                src="/logo.png"
+                alt="IGL Group Logo"
+                width={32}
+                height={43}
+                className="h-9 w-auto object-contain"
+                priority
+              />
               <div>
                 <span className="block text-base font-bold text-slate-900">
                   IGL Visa Help

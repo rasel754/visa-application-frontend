@@ -63,19 +63,16 @@ export function OtpVerificationCard({
 
   const [code, setCode] = useState("");
   const [expiryLeft, setExpiryLeft] = useState(initialExpiresSeconds);
-  const [resendLeft, setResendLeft] = useState(60);
 
   // Reset timers whenever a fresh OTP send happens
   useEffect(() => {
     setExpiryLeft(initialExpiresSeconds);
-    setResendLeft(60);
     setCode("");
   }, [initialExpiresSeconds, devOtp]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
       setExpiryLeft((prev) => (prev > 0 ? prev - 1 : 0));
-      setResendLeft((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => window.clearInterval(timer);
   }, []);
@@ -88,7 +85,6 @@ export function OtpVerificationCard({
 
   const handleResendClick = () => {
     setExpiryLeft(initialExpiresSeconds);
-    setResendLeft(60);
     setCode("");
     onResendOtp();
   };
@@ -208,30 +204,37 @@ export function OtpVerificationCard({
         </Button>
 
         <div className="flex flex-col gap-2.5 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={resendLeft > 0 || isResending || isVerifying}
-            onClick={handleResendClick}
-            className="h-11 border-slate-300 text-sm font-semibold"
-          >
-            {isResending ? (
-              <>
-                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden="true" />
-                {t.otp.sendingNewCode}
-              </>
-            ) : resendLeft > 0 ? (
-              <>
-                <RefreshCw className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                {t.otp.resendIn(resendLeft)}
-              </>
-            ) : (
-              <>
-                <RefreshCw className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                {t.otp.resendCode}
-              </>
-            )}
-          </Button>
+          {/* Requirement 2: User can't click resend button during existing OTP expiry time; only show resend after expire */}
+          {isExpired ? (
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isResending || isVerifying}
+              onClick={handleResendClick}
+              className="h-11 border-blue-600 bg-blue-50 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+            >
+              {isResending ? (
+                <>
+                  <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden="true" />
+                  {t.otp.sendingNewCode}
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                  {t.otp.resendCode}
+                </>
+              )}
+            </Button>
+          ) : (
+            <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+              <Clock className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+              <span>
+                {language === "bn"
+                  ? `ওটিপির মেয়াদ শেষ হতে বাকি: ${formatCountdown(expiryLeft, language)} (মেয়াদ শেষ হলে পুনরায় কোড পাঠানো যাবে)`
+                  : `Current OTP active: ${formatCountdown(expiryLeft, language)} (Resend button appears after expire)`}
+              </span>
+            </div>
+          )}
 
           <Button
             type="button"

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { format } from "date-fns";
 import { formatDateYmdDisplay, getTableColumns } from "@/lib/field-helpers";
 import { isTableRowNonEmpty } from "@/lib/form-validation";
@@ -165,9 +166,18 @@ export function PrintSheet({ detail }: PrintSheetProps) {
   return (
     <div className="hidden bg-white text-black print:block">
       {/* Header */}
-      <div className="border-b-2 border-slate-800 pb-3">
-        <h1 className="text-2xl font-bold text-black">IGL Visa Help</h1>
-        <p className="text-sm text-slate-700">Visit Visa Application Form</p>
+      <div className="flex items-center justify-between border-b-2 border-slate-800 pb-3">
+        <div>
+          <h1 className="text-2xl font-bold text-black">IGL Visa Help</h1>
+          <p className="text-sm text-slate-700">Visit Visa Application Form</p>
+        </div>
+        <Image
+          src="/logo.png"
+          alt="IGL Group Logo"
+          width={48}
+          height={65}
+          className="h-12 w-auto object-contain"
+        />
       </div>
 
       {/* Info Box */}

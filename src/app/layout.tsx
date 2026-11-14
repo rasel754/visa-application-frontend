@@ -21,6 +21,10 @@ export const metadata: Metadata = {
   title: "IGL Visa Help — Online Visit Visa Application Form",
   description:
     "Apply for your Visit / Tourist visa in simple steps with IGL Visa Help.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({

@@ -85,6 +85,10 @@ export const ERROR_MESSAGES = {
   otpAlreadyUsed:
     "This verification code has already been used. Please request a new code.",
   otpRateLimit: "Too many verification tries. Please wait 15 minutes and try again.",
+  otpStillActive:
+    "Current OTP is still active. Please wait until it expires before requesting a new code.",
+  otpDailyLimit:
+    "You have reached the maximum limit of 3 OTP requests per day. Please try again tomorrow.",
   otpPhoneBlocked:
     "This number cannot receive a verification code. Please contact our office.",
   phoneAlreadyBlocked: "This mobile number is already blocked.",
@@ -172,6 +176,10 @@ const EXACT_BANGLA_ERRORS: Record<string, string> = {
     "এই কোডটি আগে ব্যবহার করা হয়েছে। নতুন কোড নিয়ে চেষ্টা করুন।",
   [ERROR_MESSAGES.otpRateLimit]:
     "অনেকবার চেষ্টা করা হয়েছে। ১৫ মিনিট অপেক্ষা করে আবার চেষ্টা করুন।",
+  [ERROR_MESSAGES.otpStillActive]:
+    "আপনার বর্তমান ওটিপি কোডটি এখনো কার্যকর আছে। কোডের মেয়াদ শেষ হওয়া পর্যন্ত অপেক্ষা করুন।",
+  [ERROR_MESSAGES.otpDailyLimit]:
+    "আপনি প্রতিদিন সর্বোচ্চ ৩ বার ওটিপি পেতে পারেন। আজকের সীমা শেষ হয়েছে, দয়া করে আগামীকাল চেষ্টা করুন।",
   [ERROR_MESSAGES.otpPhoneBlocked]:
     "এই নম্বরে যাচাই কোড পাঠানো যাবে না। অনুগ্রহ করে আমাদের অফিসে যোগাযোগ করুন।",
   [ERROR_MESSAGES.phoneAlreadyBlocked]:

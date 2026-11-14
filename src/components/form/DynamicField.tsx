@@ -39,6 +39,12 @@ import {
 } from "@/lib/field-helpers";
 import { normalizeBengaliDigits } from "@/lib/i18n/bangla-data";
 import { getUiStrings } from "@/lib/i18n/translations";
+import {
+  buildCountryComboboxOptions,
+  buildNationalityComboboxOptions,
+  isCountryOrNationalityField,
+} from "@/lib/rest-countries";
+import { useRestCountries } from "@/hooks/useCountries";
 import { AnswerValue, FormAnswers, FormField, TableRowValue } from "@/lib/types";
 import { useLanguageStore } from "@/store/language-store";
 
@@ -184,7 +190,46 @@ export function DynamicField({
         ? String(value)
         : "";
 
+  const { data: restCountries = [] } = useRestCountries();
+  const countryOrNat = isCountryOrNationalityField(field);
+
+  const countryOrNatOptions = React.useMemo(() => {
+    if (!countryOrNat) return [];
+    if (countryOrNat === "country") {
+      return buildCountryComboboxOptions(restCountries, false);
+    }
+    return buildNationalityComboboxOptions(restCountries);
+  }, [countryOrNat, restCountries]);
+
   const renderControl = () => {
+    // 0. Country or Nationality dropdown selection (powered by RestCountries API in ascending order)
+    if (countryOrNat) {
+      const isCountry = countryOrNat === "country";
+      const choosePlaceholder = isCountry
+        ? (language === "bn" ? "দেশ নির্বাচন করুন..." : "Choose country...")
+        : (language === "bn" ? "জাতীয়তা নির্বাচন করুন..." : "Choose nationality...");
+      const searchPlaceholder = isCountry
+        ? (language === "bn" ? "দেশ অনুসন্ধান করুন..." : "Search country...")
+        : (language === "bn" ? "জাতীয়তা অনুসন্ধান করুন..." : "Search nationality...");
+      const emptyText = isCountry
+        ? (language === "bn" ? "কোন দেশ পাওয়া যায়নি" : "No matching country found.")
+        : (language === "bn" ? "কোন জাতীয়তা পাওয়া যায়নি" : "No matching nationality found.");
+
+      return (
+        <Combobox
+          id={inputId}
+          options={countryOrNatOptions}
+          value={stringValue}
+          onValueChange={(nextVal) => onChange(nextVal)}
+          onBlur={onBlurValidate}
+          placeholder={choosePlaceholder}
+          searchPlaceholder={searchPlaceholder}
+          emptyText={emptyText}
+          invalid={Boolean(error)}
+        />
+      );
+    }
+
     // 1. Date fields -> Popover + Calendar DatePicker (ISO YYYY-MM-DD stored)
     if (field.type === "date") {
       const mode = getDateModeForField(field.key);

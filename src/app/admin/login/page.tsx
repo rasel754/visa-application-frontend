@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
+import Image from "next/image";
+import { AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react";
 import { z } from "zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -78,9 +79,14 @@ export default function AdminLoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
       <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-col items-center text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-800 text-white shadow-sm">
-            <ShieldCheck className="h-7 w-7" aria-hidden="true" />
-          </div>
+          <Image
+            src="/logo.png"
+            alt="IGL Group Logo"
+            width={60}
+            height={81}
+            className="h-16 w-auto object-contain"
+            priority
+          />
           <h1 className="mt-3 text-2xl font-bold text-slate-900">
             IGL Visa Help
           </h1>
