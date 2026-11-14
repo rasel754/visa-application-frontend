@@ -59,9 +59,19 @@ import {
 import { ApiRequestError } from "@/lib/api";
 import { BD_MOBILE_FULL_REGEX, normalizeBdMobileInput } from "@/lib/bd-validation";
 import { ERROR_MESSAGES } from "@/lib/error-messages";
+import { OtpStatsPeriod } from "@/lib/types";
+
+const PERIOD_OPTIONS: Array<{ value: OtpStatsPeriod; label: string; description: string }> = [
+  { value: "today", label: "Today", description: "Today since midnight (BD)" },
+  { value: "week", label: "This Week", description: "Current week (Mon-Sun)" },
+  { value: "month", label: "This Month", description: "Current month" },
+  { value: "all", label: "All Time", description: "All historical activity" },
+];
 
 export default function AdminOtpActivityPage() {
   const [activeTab, setActiveTab] = useState<"logs" | "blocked">("logs");
+  const [statsPeriod, setStatsPeriod] = useState<OtpStatsPeriod>("today");
+  const [selectedMonth, setSelectedMonth] = useState("");
 
   // Log filters
   const [phoneSearch, setPhoneSearch] = useState("");
@@ -78,7 +88,9 @@ export default function AdminOtpActivityPage() {
   const [newBlockReason, setNewBlockReason] = useState("");
   const [newBlockError, setNewBlockError] = useState<string | null>(null);
 
-  const { data: stats, isLoading: statsLoading } = useAdminOtpStats();
+  const { data: stats, isLoading: statsLoading } = useAdminOtpStats(
+    selectedMonth ? { month: selectedMonth } : { period: statsPeriod },
+  );
   const { data: logsData, isLoading: logsLoading } = useAdminOtpLogs({
     phone: phoneSearch.trim() || undefined,
     status: statusFilter || undefined,
@@ -156,11 +168,75 @@ export default function AdminOtpActivityPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">OTP Activity</h1>
-        <p className="text-sm text-slate-600">
-          Monitor daily OTP verification activity and manage blocked mobile numbers.
-        </p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">OTP Activity</h1>
+          <p className="text-sm text-slate-600">
+            Monitor OTP verification activity, success rates, and manage blocked mobile numbers.
+          </p>
+        </div>
+
+        {/* Filters: Preset periods (Today, This Week, This Month, All Time) + Custom Month picker */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Preset Buttons */}
+          <div className="inline-flex items-center rounded-xl border border-slate-200 bg-slate-100/80 p-1 shadow-sm">
+            {PERIOD_OPTIONS.map((opt) => {
+              const isActive = !selectedMonth && statsPeriod === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    setSelectedMonth("");
+                    setStatsPeriod(opt.value);
+                  }}
+                  title={opt.description}
+                  className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all ${
+                    isActive
+                      ? "bg-white text-blue-700 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Any Month Selector */}
+          <div className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 shadow-sm">
+            <Label
+              htmlFor="otp-month-picker"
+              className="text-xs font-medium text-slate-500 whitespace-nowrap cursor-pointer"
+            >
+              Select Month:
+            </Label>
+            <Input
+              id="otp-month-picker"
+              type="month"
+              value={selectedMonth}
+              onChange={(e) => {
+                setSelectedMonth(e.target.value);
+              }}
+              className="h-6 w-36 border-0 p-0 text-xs text-slate-800 focus-visible:ring-0 shadow-none cursor-pointer"
+            />
+            {selectedMonth && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSelectedMonth("");
+                  setStatsPeriod("month");
+                }}
+                className="h-5 px-1.5 text-xs text-slate-400 hover:text-slate-700"
+                title="Clear custom month"
+              >
+                ✕
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Stat Cards */}
@@ -171,37 +247,37 @@ export default function AdminOtpActivityPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <StatCard
-            title="OTP Sent Today"
-            value={stats?.sentToday ?? 0}
-            subtitle="Since midnight (BD)"
+            title="OTP Sent"
+            value={stats?.sent ?? stats?.sentToday ?? 0}
+            subtitle={stats?.label ?? "Selected period"}
             icon={Send}
             accentClass="bg-blue-50 text-blue-700"
           />
           <StatCard
-            title="Verified Today"
-            value={stats?.verifiedToday ?? 0}
+            title="Verified OTP"
+            value={stats?.verified ?? stats?.verifiedToday ?? 0}
             subtitle="Verified or used"
             icon={CheckCircle2}
             accentClass="bg-emerald-50 text-emerald-700"
           />
           <StatCard
             title="Expired"
-            value={stats?.expiredToday ?? 0}
+            value={stats?.expired ?? stats?.expiredToday ?? 0}
             subtitle="Past 5-min window"
             icon={Clock}
             accentClass="bg-slate-100 text-slate-700"
           />
           <StatCard
             title="Failed"
-            value={stats?.failedToday ?? 0}
-            subtitle="Max attempts reached"
+            value={stats?.failed ?? stats?.failedToday ?? 0}
+            subtitle="Max attempts / rejected"
             icon={XCircle}
             accentClass="bg-red-50 text-red-700"
           />
           <StatCard
             title="Success Rate"
             value={`${stats?.successRate ?? 0}%`}
-            subtitle="Verified / Sent today"
+            subtitle={`Verified / Sent (${stats?.label ?? "Period"})`}
             icon={Percent}
             accentClass="bg-indigo-50 text-indigo-700"
           />

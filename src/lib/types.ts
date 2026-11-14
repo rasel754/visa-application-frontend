@@ -198,12 +198,21 @@ export interface OtpVerifyResponse {
   otpToken: string;
 }
 
+export type OtpStatsPeriod = "today" | "week" | "month" | "all";
+
 export interface OtpStats {
+  period?: OtpStatsPeriod;
+  month?: string | null;
+  label?: string;
+  sent?: number;
+  verified?: number;
+  expired?: number;
+  failed?: number;
+  successRate: number;
   sentToday: number;
   verifiedToday: number;
   expiredToday: number;
   failedToday: number;
-  successRate: number;
 }
 
 export interface OtpLogItem {

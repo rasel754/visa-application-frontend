@@ -9,6 +9,7 @@ import {
   LinkResolution,
   OtpSendResponse,
   OtpStats,
+  OtpStatsPeriod,
   OtpVerifyResponse,
   PaginatedOtpLogs,
   PaginatedSubmissions,
@@ -308,8 +309,15 @@ export const api = {
     });
   },
 
-  fetchAdminOtpStats(): Promise<OtpStats> {
-    return request<OtpStats>("/admin/otp-stats");
+  fetchAdminOtpStats(params?: {
+    period?: OtpStatsPeriod;
+    month?: string;
+  }): Promise<OtpStats> {
+    const qs = new URLSearchParams();
+    if (params?.period) qs.set("period", params.period);
+    if (params?.month) qs.set("month", params.month);
+    const queryStr = qs.toString() ? `?${qs.toString()}` : "";
+    return request<OtpStats>(`/admin/otp-stats${queryStr}`);
   },
 
   fetchAdminOtpLogs(params: {

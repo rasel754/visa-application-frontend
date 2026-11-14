@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { SubmissionStatus } from "@/lib/types";
+import { OtpStatsPeriod, SubmissionStatus } from "@/lib/types";
 
 export function useAdminMe() {
   return useQuery({
@@ -98,10 +98,12 @@ export function useDeleteAdminLink() {
   });
 }
 
-export function useAdminOtpStats() {
+export function useAdminOtpStats(
+  params: { period?: OtpStatsPeriod; month?: string } = { period: "today" },
+) {
   return useQuery({
-    queryKey: ["admin-otp-stats"],
-    queryFn: () => api.fetchAdminOtpStats(),
+    queryKey: ["admin-otp-stats", params],
+    queryFn: () => api.fetchAdminOtpStats(params),
     refetchOnMount: "always",
   });
 }
