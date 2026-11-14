@@ -22,8 +22,15 @@ export const metadata: Metadata = {
   description:
     "Apply for your Visit / Tourist visa in simple steps with IGL Visa Help.",
   icons: {
-    icon: "/logo.png",
-    apple: "/logo.png",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon.png", type: "image/png" },
+      { url: "/logo.png", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-icon.png" },
+    ],
+    shortcut: "/favicon.ico",
   },
 };
 
