@@ -630,6 +630,12 @@ export function DocumentScannerModal({
                         </Button>
                       )}
 
+                      {cameraError && (
+                        <p className="text-center text-[11px] text-amber-400 font-medium">
+                          {cameraError}
+                        </p>
+                      )}
+
                       <p className="text-center text-[10px] text-slate-400 flex items-center justify-center gap-1">
                         <Lock className="h-3 w-3" />
                         Camera feed never leaves your local hardware
