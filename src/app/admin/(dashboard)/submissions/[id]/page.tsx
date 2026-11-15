@@ -214,8 +214,22 @@ export default function AdminSubmissionDetailPage() {
             </div>
 
             <div className="divide-y divide-slate-100 px-5">
-              {group.fields.map((field) => {
-                const val = detail.answers[field.key];
+              {group.section === "Educational Information" &&
+              (String(detail.answers["has_no_education"] ?? "") === "yes" ||
+                String(detail.answers["has_no_education"] ?? "") === "true" ||
+                (detail.answers["has_no_education"] as unknown) === true) ? (
+                <div className="flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6">
+                  <span className="text-sm font-medium text-slate-600 sm:w-5/12">
+                    Educational Qualification
+                  </span>
+                  <span className="whitespace-pre-wrap text-sm font-bold text-emerald-700 sm:w-7/12">
+                    No Formal Education
+                  </span>
+                </div>
+              ) : (
+                group.fields.map((field) => {
+                  if (field.key === "has_no_education") return null;
+                  const val = detail.answers[field.key];
 
                 if (field.type === "table") {
                   const columns = getTableColumns(field.key);
@@ -287,7 +301,7 @@ export default function AdminSubmissionDetailPage() {
                     </span>
                   </div>
                 );
-              })}
+              }))}
             </div>
           </div>
         ))}

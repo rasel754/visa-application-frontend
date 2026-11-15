@@ -7,9 +7,12 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
+  CreditCard,
   Loader2,
   RotateCcw,
   Send,
+  Sparkles,
+  Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -21,13 +24,17 @@ import { OtpVerificationCard } from "@/components/form/OtpVerificationCard";
 import { ProfessionSelect } from "@/components/form/ProfessionSelect";
 import { ReviewSection } from "@/components/form/ReviewSection";
 import { SectionFieldsView } from "@/components/form/SectionFieldsView";
+import { DocumentScannerModal } from "@/components/scanner/DocumentScannerModal";
+import { DocumentScanMode } from "@/lib/ocr/types";
 import { useCountries } from "@/hooks/useCountries";
 import { useVisitForm } from "@/hooks/useVisitForm";
 import { ApiRequestError, api } from "@/lib/api";
 import { normalizeBdMobileInput } from "@/lib/bd-validation";
 import { ERROR_MESSAGES, localizeErrorMessage } from "@/lib/error-messages";
 import {
+  addDaysToYmd,
   buildOrderedSections,
+  diffYmdInDays,
   formatProfessionLabel,
   getLocalizedCountryName,
   getLocalizedDocumentLabel,
@@ -95,12 +102,17 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
     null,
   );
 
+  // Document Auto-fill Scanner modal state
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [scannerDefaultMode, setScannerDefaultMode] = useState<DocumentScanMode>("passport");
+
   // OTP verification modal/step state
   const [otpStage, setOtpStage] = useState<{
     phone: string;
     expiresInSeconds: number;
     devOtp?: string | null;
     sendSeq: number;
+    dailyRemaining?: number;
   } | null>(null);
   const [otpError, setOtpError] = useState<string | null>(null);
   const [verifiedOtpToken, setVerifiedOtpToken] = useState<{
@@ -302,8 +314,90 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
       setVerifiedOtpToken(null);
     }
 
+    // Requirement 8: Travel information bidirectional automatic calculation
+    if (field.key === "intended_arrival_date") {
+      const arrivalYmd = typeof value === "string" ? value : "";
+      const currentDuration = Number(answers["duration_of_stay_days"]);
+      const currentDep =
+        typeof answers["intended_departure_date"] === "string"
+          ? answers["intended_departure_date"]
+          : "";
+
+      if (arrivalYmd && currentDuration > 0 && currentDuration <= 365) {
+        const calculatedDep = addDaysToYmd(arrivalYmd, currentDuration);
+        if (calculatedDep && calculatedDep !== currentDep) {
+          setAnswer("intended_departure_date", calculatedDep);
+          setFieldErrors((prev) => {
+            const next = { ...prev };
+            delete next["intended_departure_date"];
+            return next;
+          });
+        }
+      } else if (arrivalYmd && currentDep) {
+        const calculatedDays = diffYmdInDays(arrivalYmd, currentDep);
+        if (calculatedDays && calculatedDays > 0 && calculatedDays !== currentDuration) {
+          setAnswer("duration_of_stay_days", calculatedDays);
+          setFieldErrors((prev) => {
+            const next = { ...prev };
+            delete next["duration_of_stay_days"];
+            return next;
+          });
+        }
+      }
+    } else if (field.key === "duration_of_stay_days") {
+      const numDays = typeof value === "number" ? value : Number(value);
+      const arrivalYmd =
+        typeof answers["intended_arrival_date"] === "string"
+          ? answers["intended_arrival_date"]
+          : "";
+      if (arrivalYmd && Number.isFinite(numDays) && numDays > 0 && numDays <= 365) {
+        const calculatedDep = addDaysToYmd(arrivalYmd, numDays);
+        if (calculatedDep && calculatedDep !== answers["intended_departure_date"]) {
+          setAnswer("intended_departure_date", calculatedDep);
+          setFieldErrors((prev) => {
+            const next = { ...prev };
+            delete next["intended_departure_date"];
+            return next;
+          });
+        }
+      }
+    } else if (field.key === "intended_departure_date") {
+      const depYmd = typeof value === "string" ? value : "";
+      const arrivalYmd =
+        typeof answers["intended_arrival_date"] === "string"
+          ? answers["intended_arrival_date"]
+          : "";
+      if (arrivalYmd && depYmd) {
+        const calculatedDays = diffYmdInDays(arrivalYmd, depYmd);
+        if (
+          calculatedDays &&
+          calculatedDays > 0 &&
+          calculatedDays !== Number(answers["duration_of_stay_days"])
+        ) {
+          setAnswer("duration_of_stay_days", calculatedDays);
+          setFieldErrors((prev) => {
+            const next = { ...prev };
+            delete next["duration_of_stay_days"];
+            return next;
+          });
+        }
+      }
+    }
+
     const nextAnswers: FormAnswers = { ...answers, [field.key]: value };
-    if (fieldErrors[field.key]) {
+    if (
+      field.key === "has_no_education" &&
+      (value === "yes" || value === "true" || (value as unknown) === true)
+    ) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next["last_education_degree"];
+        delete next["last_education_institution"];
+        delete next["other_education"];
+        delete next["has_no_education"];
+        return next;
+      });
+    } else if (fieldErrors[field.key]) {
       const nextErr = validateFieldValue(field, value, nextAnswers);
       setFieldErrors((prev) => {
         const next = { ...prev };
@@ -598,6 +692,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
         expiresInSeconds: res.expiresInSeconds,
         devOtp: res.devOtp ?? null,
         sendSeq: (prev?.sendSeq ?? 0) + 1,
+        dailyRemaining: res.dailyRemaining,
       }));
       toast.success(t.wizard.otpSentToast);
       scrollToTop();
@@ -626,6 +721,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
               expiresInSeconds: res.expiresInSeconds,
               devOtp: res.devOtp ?? null,
               sendSeq: prev.sendSeq + 1,
+              dailyRemaining: res.dailyRemaining,
             }
           : null,
       );
@@ -635,6 +731,41 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
         err instanceof ApiRequestError ? err.message : ERROR_MESSAGES.serverError;
       setOtpError(msg);
       toast.error(localizeErrorMessage(msg, language));
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleUpdatePhoneAndSendOtp = async (
+    newNormalizedPhone: string,
+  ): Promise<boolean> => {
+    setIsSendingOtp(true);
+    setOtpError(null);
+
+    try {
+      const res = await api.sendOtp(newNormalizedPhone);
+      // Requirement 5: user can edit number at send otp page and otp will send at last saved number
+      setAnswer("phone_primary", newNormalizedPhone);
+      setVerifiedOtpToken(null);
+      setOtpStage((prev) => ({
+        phone: newNormalizedPhone,
+        expiresInSeconds: res.expiresInSeconds,
+        devOtp: res.devOtp ?? null,
+        sendSeq: (prev?.sendSeq ?? 0) + 1,
+        dailyRemaining: res.dailyRemaining,
+      }));
+      toast.success(
+        language === "bn"
+          ? `মোবাইল নম্বর আপডেট করা হয়েছে। নতুন নম্বরে ওটিপি পাঠানো হয়েছে: ${newNormalizedPhone}`
+          : `Phone number updated. OTP sent to ${newNormalizedPhone}`,
+      );
+      return true;
+    } catch (err: unknown) {
+      const msg =
+        err instanceof ApiRequestError ? err.message : ERROR_MESSAGES.serverError;
+      setOtpError(msg);
+      toast.error(localizeErrorMessage(msg, language));
+      return false;
     } finally {
       setIsSendingOtp(false);
     }
@@ -750,8 +881,10 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
           errorMessage={otpError}
           isVerifying={isSubmitting}
           isResending={isSendingOtp}
+          dailyRemaining={otpStage.dailyRemaining}
           onVerifyAndSubmit={handleVerifyAndSubmit}
           onResendOtp={handleResendOtp}
+          onUpdatePhoneAndSendOtp={handleUpdatePhoneAndSendOtp}
           onBackToReview={() => {
             setOtpStage(null);
             setOtpError(null);
@@ -832,7 +965,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
         />
       )}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+      <div className="relative overflow-hidden rounded-3xl border border-slate-200/90 bg-white p-6 shadow-[0_12px_40px_-8px_rgba(15,23,42,0.06)] transition-all duration-300 sm:p-9">
         {safeStepIndex === 0 && (
           <CountrySelect
             countries={countries}
@@ -904,6 +1037,60 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
                 <span className="font-medium">{t.optionalTag}</span>{" "}
                 {t.wizard.requiredLegendAfterOptional}
               </p>
+            </div>
+
+            {/* Document Auto-Fill Banner */}
+            <div className="relative overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50/90 via-indigo-50/60 to-white p-4 sm:p-5 shadow-xs">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white shadow-md shadow-blue-500/20">
+                    <Sparkles className="h-6 w-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-slate-900">
+                        {language === "bn"
+                          ? "পাসপোর্ট বা এনআইডি স্ক্যান করে অটো-ফিল করুন"
+                          : "Auto-Fill with Passport or National ID"}
+                      </h3>
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                        {language === "bn" ? "১০০% ফ্রি ও নিরাপদ" : "100% Free & Client-Side"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 max-w-xl">
+                      {language === "bn"
+                        ? "আপনার বাংলাদেশি পাসপোর্ট বা স্মার্ট এনআইডি কার্ডের ছবি তুলুন বা আপলোড করুন। নাম, জন্মতারিখ, পাসপোর্ট ও এনআইডি নম্বর স্বয়ংক্রিয়ভাবে ফর্মের বিভিন্ন ধাপে পূরণ হয়ে যাবে।"
+                        : "Scan or upload your Bangladeshi Passport or Smart NID card. Automatically populates your name, date of birth, passport, and NID details across the application."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 w-full sm:w-auto items-center gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setScannerDefaultMode("passport");
+                      setIsScannerOpen(true);
+                    }}
+                    className="h-10 flex-1 sm:flex-initial rounded-xl bg-blue-700 px-4 text-xs font-bold text-white shadow-xs hover:bg-blue-800"
+                  >
+                    <Upload className="mr-1.5 h-4 w-4" />
+                    {language === "bn" ? "পাসপোর্ট আপলোড" : "Upload Passport"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setScannerDefaultMode("nid");
+                      setIsScannerOpen(true);
+                    }}
+                    className="h-10 flex-1 sm:flex-initial rounded-xl border-blue-200 bg-white px-4 text-xs font-bold text-blue-900 hover:bg-blue-50"
+                  >
+                    <CreditCard className="mr-1.5 h-4 w-4" />
+                    {language === "bn" ? "এনআইডি আপলোড" : "Upload NID Card"}
+                  </Button>
+                </div>
+              </div>
             </div>
 
             <SectionFieldsView
@@ -1025,7 +1212,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
               variant="outline"
               onClick={handleBack}
               disabled={isSendingOtp || isSubmitting}
-              className="h-12 min-w-28 border-slate-300 bg-white px-5 text-base font-semibold text-slate-800"
+              className="h-13 min-w-28 rounded-2xl border-slate-200 bg-white px-5 text-base font-bold text-slate-700 shadow-xs hover:bg-slate-50 hover:text-slate-900 transition-all duration-150"
             >
               <ArrowLeft className="mr-2 h-5 w-5" aria-hidden="true" />
               {t.backButton}
@@ -1042,7 +1229,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
                 (safeStepIndex === 0 && !selectedCountry) ||
                 (safeStepIndex === 1 && (!profession || formLoading))
               }
-              className="h-12 flex-1 bg-blue-700 px-6 text-base font-semibold text-white hover:bg-blue-800 sm:flex-initial sm:min-w-44"
+              className="h-13 flex-1 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-700 px-6 text-base font-bold text-white shadow-md shadow-blue-600/20 hover:from-blue-700 hover:to-indigo-800 hover:shadow-lg sm:flex-initial sm:min-w-44 transition-all duration-150 disabled:opacity-50"
             >
               {t.continueButton}
               <ArrowRight className="ml-2 h-5 w-5" aria-hidden="true" />
@@ -1052,7 +1239,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
               type="button"
               onClick={handleStartOtpAndSubmit}
               disabled={isSendingOtp || isSubmitting}
-              className="h-12 flex-1 bg-emerald-700 px-7 text-base font-semibold text-white hover:bg-emerald-800 sm:flex-initial sm:min-w-52"
+              className="h-13 flex-1 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 px-7 text-base font-bold text-white shadow-md shadow-emerald-700/20 hover:from-emerald-700 hover:to-teal-800 hover:shadow-lg sm:flex-initial sm:min-w-52 transition-all duration-150 disabled:opacity-50"
             >
               {isSendingOtp ? (
                 <>
@@ -1069,6 +1256,13 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
           )}
         </div>
       </div>
+
+      <DocumentScannerModal
+        isOpen={isScannerOpen}
+        defaultMode={scannerDefaultMode}
+        availableFields={allFields}
+        onClose={() => setIsScannerOpen(false)}
+      />
     </div>
   );
 }

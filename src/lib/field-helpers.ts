@@ -35,6 +35,35 @@ export const SECTION_DISPLAY_ORDER = [
   "Travel Information",
 ] as const;
 
+export function addDaysToYmd(ymd: string, days: number): string | null {
+  if (!ymd || !days || !Number.isFinite(days) || days <= 0) return null;
+  const parts = ymd.split("-").map(Number);
+  if (parts.length !== 3) return null;
+  const [y, m, d] = parts;
+  if (!y || !m || !d) return null;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (Number.isNaN(dt.getTime())) return null;
+  dt.setUTCDate(dt.getUTCDate() + Math.round(days));
+  const nextY = dt.getUTCFullYear();
+  const nextM = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const nextD = String(dt.getUTCDate()).padStart(2, "0");
+  return `${nextY}-${nextM}-${nextD}`;
+}
+
+export function diffYmdInDays(arrivalYmd: string, departureYmd: string): number | null {
+  if (!arrivalYmd || !departureYmd) return null;
+  const arrParts = arrivalYmd.split("-").map(Number);
+  const depParts = departureYmd.split("-").map(Number);
+  if (arrParts.length !== 3 || depParts.length !== 3) return null;
+  const arrDt = new Date(Date.UTC(arrParts[0]!, arrParts[1]! - 1, arrParts[2]!));
+  const depDt = new Date(Date.UTC(depParts[0]!, depParts[1]! - 1, depParts[2]!));
+  if (Number.isNaN(arrDt.getTime()) || Number.isNaN(depDt.getTime())) return null;
+  const diffMs = depDt.getTime() - arrDt.getTime();
+  const days = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  if (days <= 0 || days > 365) return null;
+  return days;
+}
+
 export function groupFieldsBySection(
   fields: FormField[],
   group: "common" | ProfessionKey = "common",
@@ -172,6 +201,34 @@ export function getTableColumns(
   fieldKey: string,
   language: FormLanguage = "en",
 ): TableColumnSpec[] {
+  if (fieldKey === "other_education") {
+    if (language === "bn") {
+      return [
+        {
+          key: "degree",
+          label: "ডিগ্রির নাম",
+          placeholder: "যেমন: এইচএসসি, ডিপ্লোমা, বিএসসি ইত্যাদি",
+        },
+        {
+          key: "institution",
+          label: "শিক্ষা প্রতিষ্ঠানের নাম (ঐচ্ছিক)",
+          placeholder: "শিক্ষা প্রতিষ্ঠানের নাম লিখুন",
+        },
+      ];
+    }
+    return [
+      {
+        key: "degree",
+        label: "Degree Name",
+        placeholder: "e.g. HSC / Diploma / BBA / SSC",
+      },
+      {
+        key: "institution",
+        label: "Institution Name (Optional)",
+        placeholder: "e.g. Dhaka College",
+      },
+    ];
+  }
   if (fieldKey === "education_history") {
     if (language === "bn") {
       return [
@@ -633,7 +690,7 @@ const SECTION_INTROS: Record<string, SectionIntro> = {
     bangla: SECTION_INTROS_BN["Personal Information"],
   },
   "Family Information": {
-    english: "Write your parents' details (required), and spouse or children details if applicable.",
+    english: "Write your parents' details (required).",
     bangla: SECTION_INTROS_BN["Family Information"],
   },
   Passport: {

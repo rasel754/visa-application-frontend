@@ -430,9 +430,25 @@ export const FIELD_TRANSLATIONS_BN: Record<string, FieldTranslationBn> = {
     placeholder: "উদাহরণ: 2004-2006",
     helpText: "YYYY-YYYY ফরম্যাটে লিখুন (যেমন: 2004-2006)।",
   },
+  has_no_education: {
+    label: "কোনো প্রাতিষ্ঠানিক শিক্ষা নেই",
+    placeholder: "নির্বাচন করুন",
+    helpText: "আবেদনকারীর কোনো প্রাতিষ্ঠানিক শিক্ষা না থাকলে টিক দিন",
+  },
+  other_education: {
+    label: "অন্যান্য শিক্ষাগত যোগ্যতা",
+    placeholder: "অন্যান্য ডিগ্রি যোগ করুন",
+    helpText: "পূর্ববর্তী অন্যান্য ডিগ্রি বা সার্টিফিকেট থাকলে যোগ করুন (ঐচ্ছিক)",
+  },
+  last_education_degree: {
+    label: "ডিগ্রির নাম",
+    placeholder: "যেমন: এইচএসসি, ডিগ্রি, বিএসসি, এমএসসি, বিবিএ ইত্যাদি",
+    helpText: "আপনার সর্বশেষ অর্জিত ডিগ্রির নাম লিখুন",
+  },
   last_education_institution: {
-    label: "প্রতিষ্ঠানের নাম",
+    label: "প্রতিষ্ঠানের নাম (ঐচ্ছিক)",
     placeholder: "সর্বশেষ শিক্ষা প্রতিষ্ঠানের নাম লিখুন",
+    helpText: "শিক্ষা প্রতিষ্ঠানের নাম লিখুন (ঐচ্ছিক)",
   },
   last_education_major: {
     label: "বিভাগ / বিষয় (Major)",
@@ -1001,7 +1017,7 @@ export const SECTION_INTROS_BN: Record<string, string> = {
   "Personal Information":
     "আপনার পাসপোর্ট অনুযায়ী ব্যক্তিগত তথ্যগুলো নির্ভুলভাবে লিখুন।",
   "Family Information":
-    "পিতা-মাতার তথ্য অবশ্যই দিন; বিবাহিত হলে স্বামী/স্ত্রী এবং সন্তান থাকলে তাদের তথ্য দিন।",
+    "আপনার পিতা ও মাতার তথ্য নির্ভুলভাবে লিখুন (আবশ্যক)।",
   Passport:
     "আপনার পাসপোর্ট দেখে নম্বর ও তারিখগুলো অত্যন্ত সতর্কতার সাথে লিখুন।",
   Contact:

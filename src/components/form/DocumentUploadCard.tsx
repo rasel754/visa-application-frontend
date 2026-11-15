@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   FileText,
   RefreshCw,
+  Sparkles,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -21,6 +22,10 @@ import { validateClientPickedFile } from "@/lib/form-validation";
 import { toBanglaDigits } from "@/lib/i18n/bangla-data";
 import { getUiStrings } from "@/lib/i18n/translations";
 import { FormDocument, UploadedDocumentEntry } from "@/lib/types";
+import {
+  getScannedFileFromMemory,
+  useIntakeStore,
+} from "@/store/intake-store";
 import { FormLanguage, useLanguageStore } from "@/store/language-store";
 
 interface DocumentUploadCardProps {
@@ -58,6 +63,39 @@ export function DocumentUploadCard({
   const localizedError = error
     ? localizeErrorMessage(error, language, docLabel)
     : "";
+
+  const scannedDocAvailable = useIntakeStore((s) => s.scannedDocAvailable);
+  const isPassportDoc =
+    document.key === "passport_original_and_copy" ||
+    document.key.includes("passport");
+  const isNidDoc =
+    document.key === "national_id_copy" ||
+    document.key.includes("nid") ||
+    document.key.includes("national_id");
+
+  const canAttachScannedPassport = isPassportDoc && scannedDocAvailable.passport;
+  const canAttachScannedNid = isNidDoc && scannedDocAvailable.nidFront;
+
+  const handleAttachScanned = (type: "passport" | "nidFront") => {
+    const file = getScannedFileFromMemory(type);
+    if (!file) {
+      toast.error(
+        language === "bn"
+          ? "স্ক্যান করা ডকুমেন্ট মেমরিতে পাওয়া যায়নি।"
+          : "Scanned document not found in memory.",
+      );
+      return;
+    }
+    const previewUrl = file.type.startsWith("image/")
+      ? URL.createObjectURL(file)
+      : undefined;
+    onSelectFile(document.key, { file, previewUrl });
+    toast.success(
+      language === "bn"
+        ? "স্ক্যান করা ডকুমেন্ট সফলভাবে যুক্ত করা হয়েছে।"
+        : "Scanned document attached successfully.",
+    );
+  };
 
   const handleFilePicked = (file: File | undefined) => {
     if (!file) return;
@@ -200,17 +238,45 @@ export function DocumentUploadCard({
           </div>
         </div>
       ) : (
-        <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 p-4 text-center">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={openPicker}
-            className="h-12 w-full border-blue-300 bg-white text-base font-semibold text-blue-800 hover:bg-blue-50 sm:w-auto sm:px-6"
-          >
-            <Upload className="mr-2 h-5 w-5" aria-hidden="true" />
-            {t.documentCard.chooseFileButton}
-          </Button>
-          <p className="mt-2 text-xs text-slate-500">
+        <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-4 text-center">
+          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+            {canAttachScannedPassport && (
+              <Button
+                type="button"
+                onClick={() => handleAttachScanned("passport")}
+                className="h-12 w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 px-5 text-base font-bold text-white shadow-md shadow-blue-600/20 hover:from-blue-700 hover:to-indigo-800 sm:w-auto"
+              >
+                <Sparkles className="mr-2 h-5 w-5" aria-hidden="true" />
+                {language === "bn"
+                  ? "স্ক্যান করা পাসপোর্ট যুক্ত করুন"
+                  : "Attach Scanned Passport"}
+              </Button>
+            )}
+
+            {canAttachScannedNid && (
+              <Button
+                type="button"
+                onClick={() => handleAttachScanned("nidFront")}
+                className="h-12 w-full rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 px-5 text-base font-bold text-white shadow-md shadow-emerald-700/20 hover:from-emerald-700 hover:to-teal-800 sm:w-auto"
+              >
+                <Sparkles className="mr-2 h-5 w-5" aria-hidden="true" />
+                {language === "bn"
+                  ? "স্ক্যান করা এনআইডি যুক্ত করুন"
+                  : "Attach Scanned NID"}
+              </Button>
+            )}
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={openPicker}
+              className="h-12 w-full border-blue-300 bg-white text-base font-semibold text-blue-800 hover:bg-blue-50 sm:w-auto sm:px-6"
+            >
+              <Upload className="mr-2 h-5 w-5" aria-hidden="true" />
+              {t.documentCard.chooseFileButton}
+            </Button>
+          </div>
+          <p className="mt-2.5 text-xs text-slate-500">
             {t.documentCard.dragAndDropHint}
           </p>
         </div>

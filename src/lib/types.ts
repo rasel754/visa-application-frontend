@@ -191,6 +191,7 @@ export interface OtpSendResponse {
   sent: boolean;
   expiresInSeconds: number;
   devOtp?: string;
+  dailyRemaining?: number;
 }
 
 export interface OtpVerifyResponse {

@@ -52,8 +52,20 @@ export function PrintSheet({ detail }: PrintSheetProps) {
             </div>
 
             <div className="divide-y divide-slate-200 border-x border-b border-slate-300">
-              {group.fields.map((field) => {
-                const val = detail.answers[field.key];
+              {group.section === "Educational Information" &&
+              (String(detail.answers["has_no_education"] ?? "") === "yes" ||
+                String(detail.answers["has_no_education"] ?? "") === "true" ||
+                (detail.answers["has_no_education"] as unknown) === true) ? (
+                <div className="flex justify-between p-2.5 text-xs">
+                  <span className="font-semibold text-black">
+                    Educational Qualification:
+                  </span>
+                  <span className="font-bold text-black">No Formal Education</span>
+                </div>
+              ) : (
+                group.fields.map((field) => {
+                  if (field.key === "has_no_education") return null;
+                  const val = detail.answers[field.key];
                 if (field.type === "table") {
                   const columns = getTableColumns(field.key);
                   const rows = Array.isArray(val)
@@ -128,7 +140,7 @@ export function PrintSheet({ detail }: PrintSheetProps) {
                     </span>
                   </div>
                 );
-              })}
+              }))}
             </div>
           </div>
         ))}

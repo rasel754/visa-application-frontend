@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AlertCircle, Plus, Trash2 } from "lucide-react";
+import { AlertCircle, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import {
@@ -37,7 +37,7 @@ import {
   getLocalizedSelectOptions,
   getTableColumns,
 } from "@/lib/field-helpers";
-import { normalizeBengaliDigits } from "@/lib/i18n/bangla-data";
+import { normalizeBengaliDigits, toBanglaDigits } from "@/lib/i18n/bangla-data";
 import { getUiStrings } from "@/lib/i18n/translations";
 import {
   buildCountryComboboxOptions,
@@ -46,6 +46,7 @@ import {
 } from "@/lib/rest-countries";
 import { useRestCountries } from "@/hooks/useCountries";
 import { AnswerValue, FormAnswers, FormField, TableRowValue } from "@/lib/types";
+import { FieldMetaItem, useIntakeStore } from "@/store/intake-store";
 import { useLanguageStore } from "@/store/language-store";
 
 interface DynamicFieldProps {
@@ -55,6 +56,7 @@ interface DynamicFieldProps {
   error?: string;
   onChange: (value: AnswerValue) => void;
   onBlurValidate?: () => void;
+  meta?: FieldMetaItem;
 }
 
 const STRICT_PAST_DATE_KEYS = new Set(["date_of_birth", "passport_issue_date"]);
@@ -165,9 +167,13 @@ export function DynamicField({
   error,
   onChange,
   onBlurValidate,
+  meta,
 }: DynamicFieldProps) {
   const language = useLanguageStore((s) => s.language);
   const t = getUiStrings(language);
+  const storeMeta = useIntakeStore((s) => s.fieldMeta[field.key]);
+  const activeMeta = meta ?? storeMeta;
+  const isAutoFilled = activeMeta?.source === "ocr";
 
   const inputId = `field-${field.key}`;
   const maxLength = getFieldMaxLength(field);
@@ -364,8 +370,8 @@ export function DynamicField({
       );
     }
 
-    // 4. Textarea -> UPPERCASE automatically
-    if (field.type === "textarea") {
+    // 4. Textarea -> UPPERCASE automatically (Address fields render as text inputs per requirement 1)
+    if (field.type === "textarea" && !field.key.toLowerCase().includes("address")) {
       const uppercase = shouldUppercaseField(field);
       return (
         <Textarea
@@ -449,13 +455,14 @@ export function DynamicField({
       );
     }
 
-    // 6. Table (legacy fallback if ever present)
+    // 6. Table
     if (field.type === "table") {
       const columns = getTableColumns(field.key, language);
-      const rows: TableRowValue[] =
-        Array.isArray(value) && value.length > 0
-          ? (value as TableRowValue[])
-          : [Object.fromEntries(columns.map((c) => [c.key, ""]))];
+      const rows: TableRowValue[] = Array.isArray(value)
+        ? (value as TableRowValue[])
+        : field.required
+          ? [Object.fromEntries(columns.map((c) => [c.key, ""]))]
+          : [];
 
       const updateCell = (rowIndex: number, colKey: string, cellValue: string) => {
         const nextRows = rows.map((row, idx) =>
@@ -480,16 +487,30 @@ export function DynamicField({
 
       return (
         <div id={inputId} tabIndex={-1} className="space-y-3">
+          {rows.length === 0 && (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/70 p-4 text-center">
+              <p className="text-sm font-medium text-slate-500">
+                {language === "bn"
+                  ? "কোনো অতিরিক্ত শিক্ষাগত সনদের তথ্য যোগ করা হয়নি (ঐচ্ছিক)"
+                  : "No additional qualifications added yet (optional)"}
+              </p>
+            </div>
+          )}
+
           {rows.map((row, rowIndex) => (
             <div
               key={`${field.key}-row-${rowIndex}`}
-              className={`rounded-xl border bg-slate-50/70 p-3.5 ${
+              className={`rounded-xl border bg-slate-50/70 p-3.5 transition-colors ${
                 error ? "border-red-400" : "border-slate-200"
               }`}
             >
               <div className="mb-3 flex items-center justify-between gap-2">
                 <span className="text-sm font-semibold text-slate-700">
-                  {t.dynamicField.rowTitle(rowIndex + 1)}
+                  {field.key === "other_education"
+                    ? language === "bn"
+                      ? `অতিরিক্ত ডিগ্রি / সনদ #${toBanglaDigits(rowIndex + 1)}`
+                      : `Other Qualification #${rowIndex + 1}`
+                    : t.dynamicField.rowTitle(rowIndex + 1)}
                 </span>
                 <Button
                   type="button"
@@ -531,10 +552,14 @@ export function DynamicField({
             type="button"
             variant="outline"
             onClick={addRow}
-            className="h-11 border-blue-300 text-base font-medium text-blue-800 hover:bg-blue-50"
+            className="h-11 border-blue-300 text-base font-semibold text-blue-800 hover:bg-blue-50"
           >
             <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-            {t.dynamicField.addRow}
+            {field.key === "other_education"
+              ? language === "bn"
+                ? "আরেকটি ডিগ্রি যোগ করুন (ঐচ্ছিক)"
+                : "+ Add Another Degree (Optional)"
+              : t.dynamicField.addRow}
           </Button>
         </div>
       );
@@ -686,21 +711,42 @@ export function DynamicField({
 
   return (
     <div className="space-y-2">
-      <Label
-        htmlFor={inputId}
-        className="block text-base font-semibold leading-snug text-slate-900"
-      >
-        {localizedLabel}
-        {field.required ? (
-          <span className="ml-1 text-red-600" aria-label={t.requiredAria}>
-            *
-          </span>
-        ) : (
-          <span className="ml-1.5 text-sm font-normal text-slate-500">
-            {t.optionalTag}
+      <div className="flex items-center justify-between gap-2">
+        <Label
+          htmlFor={inputId}
+          className="block text-base font-semibold leading-snug text-slate-900"
+        >
+          {localizedLabel}
+          {field.required ? (
+            <span className="ml-1 text-red-600" aria-label={t.requiredAria}>
+              *
+            </span>
+          ) : (
+            <span className="ml-1.5 text-sm font-normal text-slate-500">
+              {t.optionalTag}
+            </span>
+          )}
+        </Label>
+
+        {isAutoFilled && (
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+              activeMeta.confidence === "low"
+                ? "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-600/30"
+                : "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-600/20"
+            }`}
+          >
+            <Sparkles className="h-3 w-3 shrink-0" aria-hidden="true" />
+            {activeMeta.confidence === "low"
+              ? language === "bn"
+                ? "স্বয়ংক্রিয় পূরণ • বানান যাচাই করুন"
+                : "Auto-filled • Verify spelling"
+              : language === "bn"
+                ? "স্বয়ংক্রিয় পূরণ"
+                : "Auto-filled"}
           </span>
         )}
-      </Label>
+      </div>
 
       {renderControl()}
 

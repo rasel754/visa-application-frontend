@@ -20,6 +20,8 @@ import { ErrorItem, FriendlyError } from "@/components/form/FriendlyError";
 import { SectionFieldsView } from "@/components/form/SectionFieldsView";
 import { localizeErrorMessage } from "@/lib/error-messages";
 import {
+  addDaysToYmd,
+  diffYmdInDays,
   formatDateYmdDisplay,
   formatProfessionLabel,
   getLocalizedCountryName,
@@ -104,6 +106,25 @@ export function ReviewSection({
     language,
   );
 
+  const isEduWaived =
+    String(answers["has_no_education"] ?? "") === "yes" ||
+    String(answers["has_no_education"] ?? "") === "true" ||
+    (answers["has_no_education"] as unknown) === true;
+
+  const visibleErrorItems = errorItems.filter((item: ErrorItem) => {
+    if (isEduWaived) {
+      if (
+        item.key === "last_education_degree" ||
+        item.key === "last_education_institution" ||
+        item.key === "has_no_education" ||
+        item.key === "other_education"
+      ) {
+        return false;
+      }
+    }
+    return true;
+  });
+
   const startEditingSection = (group: SectionGroup) => {
     const initialDraft: FormAnswers = {};
     for (const field of group.fields) {
@@ -128,9 +149,93 @@ export function ReviewSection({
     value: AnswerValue,
   ) => {
     const nextDraft: FormAnswers = { ...draftAnswers, [field.key]: value };
+    const mergedCurrent = { ...answers, ...nextDraft };
+
+    // Requirement 8: Automatic calculation between arrival date, departure date, and stay duration
+    if (field.key === "intended_arrival_date") {
+      const arrivalYmd = typeof value === "string" ? value : "";
+      const currentDuration = Number(mergedCurrent["duration_of_stay_days"]);
+      const currentDep =
+        typeof mergedCurrent["intended_departure_date"] === "string"
+          ? mergedCurrent["intended_departure_date"]
+          : "";
+
+      if (arrivalYmd && currentDuration > 0 && currentDuration <= 365) {
+        const calculatedDep = addDaysToYmd(arrivalYmd, currentDuration);
+        if (calculatedDep && calculatedDep !== currentDep) {
+          nextDraft["intended_departure_date"] = calculatedDep;
+          setDraftErrors((prev) => {
+            const next = { ...prev };
+            delete next["intended_departure_date"];
+            return next;
+          });
+        }
+      } else if (arrivalYmd && currentDep) {
+        const calculatedDays = diffYmdInDays(arrivalYmd, currentDep);
+        if (calculatedDays && calculatedDays > 0 && calculatedDays !== currentDuration) {
+          nextDraft["duration_of_stay_days"] = calculatedDays;
+          setDraftErrors((prev) => {
+            const next = { ...prev };
+            delete next["duration_of_stay_days"];
+            return next;
+          });
+        }
+      }
+    } else if (field.key === "duration_of_stay_days") {
+      const numDays = typeof value === "number" ? value : Number(value);
+      const arrivalYmd =
+        typeof mergedCurrent["intended_arrival_date"] === "string"
+          ? mergedCurrent["intended_arrival_date"]
+          : "";
+      if (arrivalYmd && Number.isFinite(numDays) && numDays > 0 && numDays <= 365) {
+        const calculatedDep = addDaysToYmd(arrivalYmd, numDays);
+        if (calculatedDep && calculatedDep !== mergedCurrent["intended_departure_date"]) {
+          nextDraft["intended_departure_date"] = calculatedDep;
+          setDraftErrors((prev) => {
+            const next = { ...prev };
+            delete next["intended_departure_date"];
+            return next;
+          });
+        }
+      }
+    } else if (field.key === "intended_departure_date") {
+      const depYmd = typeof value === "string" ? value : "";
+      const arrivalYmd =
+        typeof mergedCurrent["intended_arrival_date"] === "string"
+          ? mergedCurrent["intended_arrival_date"]
+          : "";
+      if (arrivalYmd && depYmd) {
+        const calculatedDays = diffYmdInDays(arrivalYmd, depYmd);
+        if (
+          calculatedDays &&
+          calculatedDays > 0 &&
+          calculatedDays !== Number(mergedCurrent["duration_of_stay_days"])
+        ) {
+          nextDraft["duration_of_stay_days"] = calculatedDays;
+          setDraftErrors((prev) => {
+            const next = { ...prev };
+            delete next["duration_of_stay_days"];
+            return next;
+          });
+        }
+      }
+    }
+
     setDraftAnswers(nextDraft);
 
-    if (draftErrors[field.key]) {
+    if (
+      field.key === "has_no_education" &&
+      (value === "yes" || value === "true" || (value as unknown) === true)
+    ) {
+      setDraftErrors((prev) => {
+        const next = { ...prev };
+        delete next["last_education_degree"];
+        delete next["last_education_institution"];
+        delete next["other_education"];
+        delete next["has_no_education"];
+        return next;
+      });
+    } else if (draftErrors[field.key]) {
       const merged = { ...answers, ...nextDraft };
       const err = validateFieldValue(field, value, merged);
       setDraftErrors((prev) => {
@@ -352,10 +457,10 @@ export function ReviewSection({
         <p className="text-base text-slate-600">{t.review.subtitle}</p>
       </div>
 
-      {errorItems.length > 0 && (
+      {visibleErrorItems.length > 0 && (
         <FriendlyError
           title={t.review.fixAttentionTitle}
-          items={errorItems}
+          items={visibleErrorItems}
           onJumpToItem={(item) => {
             const matchedSection = sections.find((s) =>
               s.fields.some((f) => f.key === item.key),
@@ -494,101 +599,121 @@ export function ReviewSection({
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100 px-4">
-                  {group.fields.map((field) => {
-                    const val = answers[field.key];
-                    const hasError = errorItems.some((e) => e.key === field.key);
-                    const localizedFieldLabel = getLocalizedFieldDisplayLabel(
-                      field,
-                      language,
-                    );
+                  {group.section === "Educational Information" && isEduWaived ? (
+                    <div className="flex flex-col gap-1 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                      <span className="text-sm font-medium text-slate-600 sm:w-1/2">
+                        {language === "bn" ? "শিক্ষাগত যোগ্যতা" : "Educational Qualification"}
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-base font-semibold text-emerald-700 sm:w-1/2 sm:justify-end">
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                        {language === "bn" ? "কোনো প্রাতিষ্ঠানিক শিক্ষা নেই" : "No Formal Education"}
+                      </span>
+                    </div>
+                  ) : (
+                    group.fields.map((field) => {
+                      if (field.key === "has_no_education") return null;
 
-                    if (field.type === "table") {
-                      const columns = getTableColumns(field.key, language);
-                      const rows = Array.isArray(val)
-                        ? (val as TableRowValue[]).filter(isTableRowNonEmpty)
-                        : [];
+                      const val = answers[field.key];
+                      const hasError = visibleErrorItems.some((e) => e.key === field.key);
+                      const localizedFieldLabel = getLocalizedFieldDisplayLabel(
+                        field,
+                        language,
+                      );
+
+                      if (field.type === "table") {
+                        const columns = getTableColumns(field.key, language);
+                        const rows = Array.isArray(val)
+                          ? (val as TableRowValue[]).filter(isTableRowNonEmpty)
+                          : [];
+
+                        return (
+                          <div key={field.key} className="py-3">
+                            <p className="text-sm font-semibold text-slate-700">
+                              {localizedFieldLabel}
+                            </p>
+                            {rows.length === 0 ? (
+                              <p
+                                className={`mt-1 text-sm ${
+                                  hasError
+                                    ? "font-semibold text-red-600"
+                                    : "text-slate-400"
+                                }`}
+                              >
+                                {field.key === "other_education"
+                                  ? language === "bn"
+                                    ? "কোনোটি যোগ করা হয়নি (ঐচ্ছিক)"
+                                    : "None added (optional)"
+                                  : hasError
+                                    ? t.review.missingRow
+                                    : t.review.notGiven}
+                              </p>
+                            ) : (
+                              <div className="mt-2 space-y-2">
+                                {rows.map((r, rIdx) => (
+                                  <div
+                                    key={`${field.key}-rev-${rIdx}`}
+                                    className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-sm"
+                                  >
+                                    {columns.map((c) => (
+                                      <p key={c.key} className="text-slate-800">
+                                        <span className="font-medium text-slate-600">
+                                          {c.label}:{" "}
+                                        </span>
+                                        {r[c.key]?.trim() || "—"}
+                                      </p>
+                                    ))}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      const rawStr =
+                        typeof val === "number"
+                          ? String(val)
+                          : typeof val === "string"
+                            ? val.trim()
+                            : "";
+                      const displayStr = rawStr
+                        ? field.type === "date"
+                          ? formatDateYmdDisplay(rawStr, language)
+                          : field.type === "select"
+                            ? getLocalizedSelectOptionLabel(
+                                field.key,
+                                rawStr,
+                                language,
+                              )
+                            : rawStr
+                        : "";
 
                       return (
-                        <div key={field.key} className="py-3">
-                          <p className="text-sm font-semibold text-slate-700">
+                        <div
+                          key={field.key}
+                          className="flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
+                        >
+                          <span className="text-sm font-medium text-slate-600 sm:w-1/2">
                             {localizedFieldLabel}
-                          </p>
-                          {rows.length === 0 ? (
-                            <p
-                              className={`mt-1 text-sm ${
-                                hasError
-                                  ? "font-semibold text-red-600"
+                          </span>
+                          <span
+                            className={`break-words text-base sm:w-1/2 sm:text-right ${
+                              hasError
+                                ? "font-semibold text-red-600"
+                                : displayStr
+                                  ? "font-medium text-slate-900"
                                   : "text-slate-400"
-                              }`}
-                            >
-                              {hasError ? t.review.missingRow : t.review.notGiven}
-                            </p>
-                          ) : (
-                            <div className="mt-2 space-y-2">
-                              {rows.map((r, rIdx) => (
-                                <div
-                                  key={`${field.key}-rev-${rIdx}`}
-                                  className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-sm"
-                                >
-                                  {columns.map((c) => (
-                                    <p key={c.key} className="text-slate-800">
-                                      <span className="font-medium text-slate-600">
-                                        {c.label}:{" "}
-                                      </span>
-                                      {r[c.key]?.trim() || "—"}
-                                    </p>
-                                  ))}
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                            }`}
+                          >
+                            {displayStr ||
+                              (hasError
+                                ? t.review.missingOrNeedsFix
+                                : t.review.notWrittenOptional)}
+                          </span>
                         </div>
                       );
-                    }
-
-                    const rawStr =
-                      typeof val === "number"
-                        ? String(val)
-                        : typeof val === "string"
-                          ? val.trim()
-                          : "";
-                    const displayStr = rawStr
-                      ? field.type === "date"
-                        ? formatDateYmdDisplay(rawStr, language)
-                        : field.type === "select"
-                          ? getLocalizedSelectOptionLabel(
-                              field.key,
-                              rawStr,
-                              language,
-                            )
-                          : rawStr
-                      : "";
-
-                    return (
-                      <div
-                        key={field.key}
-                        className="flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4"
-                      >
-                        <span className="text-sm font-medium text-slate-600 sm:w-1/2">
-                          {localizedFieldLabel}
-                        </span>
-                        <span
-                          className={`break-words text-base sm:w-1/2 sm:text-right ${
-                            hasError
-                              ? "font-semibold text-red-600"
-                              : displayStr
-                                ? "font-medium text-slate-900"
-                                : "text-slate-400"
-                          }`}
-                        >
-                          {displayStr ||
-                            (hasError
-                              ? t.review.missingOrNeedsFix
-                              : t.review.notWrittenOptional)}
-                        </span>
-                      </div>
-                    );
-                  })}
+                    })
+                  )}
                 </div>
               )}
             </div>

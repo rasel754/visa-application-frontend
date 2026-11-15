@@ -10,18 +10,58 @@ const noopStorage: StateStorage = {
   removeItem: () => {},
 };
 
+export interface FieldMetaItem {
+  source: "ocr" | "manual";
+  confidence: "high" | "low";
+}
+
+// In-memory cache for clean File objects (cannot be serialized to sessionStorage)
+const inMemoryScannedFiles = new Map<string, File>();
+
+export function storeScannedFileInMemory(key: string, file: File): void {
+  inMemoryScannedFiles.set(key, file);
+}
+
+export function getScannedFileFromMemory(key: string): File | undefined {
+  return inMemoryScannedFiles.get(key);
+}
+
+export function clearScannedFilesInMemory(): void {
+  inMemoryScannedFiles.clear();
+}
+
 interface IntakeState {
   countryCode: string | null;
   profession: ProfessionKey | null;
   answers: FormAnswers;
+  fieldMeta: Record<string, FieldMetaItem>;
   currentStepIndex: number;
   savedAt: string | null;
   hasHydrated: boolean;
   lastSubmission: SubmitSuccessPayload | null;
+  scannedDocAvailable: {
+    passport: boolean;
+    nidFront: boolean;
+    nidBack: boolean;
+  };
   setCountry: (countryCode: string | null) => void;
   setProfession: (profession: ProfessionKey | null) => void;
-  setAnswer: (key: string, value: AnswerValue) => void;
-  setAnswersBulk: (updates: FormAnswers) => void;
+  setAnswer: (
+    key: string,
+    value: AnswerValue,
+    source?: "ocr" | "manual",
+    confidence?: "high" | "low",
+  ) => void;
+  setAnswersBulk: (
+    updates: FormAnswers,
+    metaUpdates?: Record<string, FieldMetaItem>,
+  ) => void;
+  setFieldMeta: (key: string, meta: FieldMetaItem) => void;
+  setFieldMetaBulk: (metaUpdates: Record<string, FieldMetaItem>) => void;
+  setScannedDocAvailable: (
+    key: "passport" | "nidFront" | "nidBack",
+    available: boolean,
+  ) => void;
   setStepIndex: (index: number) => void;
   setHasHydrated: (hydrated: boolean) => void;
   setLastSubmission: (payload: SubmitSuccessPayload | null) => void;
@@ -51,10 +91,16 @@ export const useIntakeStore = create<IntakeState>()(
       countryCode: null,
       profession: null,
       answers: {},
+      fieldMeta: {},
       currentStepIndex: 0,
       savedAt: null,
       hasHydrated: false,
       lastSubmission: null,
+      scannedDocAvailable: {
+        passport: false,
+        nidFront: false,
+        nidBack: false,
+      },
 
       setCountry: (countryCode) =>
         set((state) => ({
@@ -70,16 +116,48 @@ export const useIntakeStore = create<IntakeState>()(
           savedAt: new Date().toISOString(),
         }),
 
-      setAnswer: (key, value) =>
+      setAnswer: (key, value, source, confidence) =>
+        set((state) => {
+          const nextMeta = { ...state.fieldMeta };
+          if (source) {
+            nextMeta[key] = { source, confidence: confidence ?? "high" };
+          } else if (nextMeta[key]?.source === "ocr") {
+            // When user edits an auto-filled field, switch source to 'manual'
+            nextMeta[key] = { source: "manual", confidence: "high" };
+          }
+
+          return {
+            answers: { ...state.answers, [key]: value },
+            fieldMeta: nextMeta,
+            savedAt: new Date().toISOString(),
+          };
+        }),
+
+      setAnswersBulk: (updates, metaUpdates) =>
         set((state) => ({
-          answers: { ...state.answers, [key]: value },
+          answers: { ...state.answers, ...updates },
+          fieldMeta: metaUpdates
+            ? { ...state.fieldMeta, ...metaUpdates }
+            : state.fieldMeta,
           savedAt: new Date().toISOString(),
         })),
 
-      setAnswersBulk: (updates) =>
+      setFieldMeta: (key, meta) =>
         set((state) => ({
-          answers: { ...state.answers, ...updates },
-          savedAt: new Date().toISOString(),
+          fieldMeta: { ...state.fieldMeta, [key]: meta },
+        })),
+
+      setFieldMetaBulk: (metaUpdates) =>
+        set((state) => ({
+          fieldMeta: { ...state.fieldMeta, ...metaUpdates },
+        })),
+
+      setScannedDocAvailable: (key, available) =>
+        set((state) => ({
+          scannedDocAvailable: {
+            ...state.scannedDocAvailable,
+            [key]: available,
+          },
         })),
 
       setStepIndex: (index) =>
@@ -108,26 +186,36 @@ export const useIntakeStore = create<IntakeState>()(
         set({ lastSubmission: payload });
       },
 
-      resetDraft: () =>
+      resetDraft: () => {
+        clearScannedFilesInMemory();
         set({
           countryCode: null,
           profession: null,
           answers: {},
+          fieldMeta: {},
           currentStepIndex: 0,
           savedAt: null,
-        }),
+          scannedDocAvailable: {
+            passport: false,
+            nidFront: false,
+            nidBack: false,
+          },
+        });
+      },
     }),
     {
-      name: "igl-visa-intake-v3",
+      name: "igl-visa-intake-v4-session",
       storage: createJSONStorage(() =>
-        typeof window !== "undefined" ? window.localStorage : noopStorage,
+        typeof window !== "undefined" ? window.sessionStorage : noopStorage,
       ),
       partialize: (state) => ({
         countryCode: state.countryCode,
         profession: state.profession,
         answers: state.answers,
+        fieldMeta: state.fieldMeta,
         currentStepIndex: state.currentStepIndex,
         savedAt: state.savedAt,
+        scannedDocAvailable: state.scannedDocAvailable,
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
