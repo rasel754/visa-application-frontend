@@ -24,15 +24,29 @@ import {
   ProfessionEnum,
   ProfessionKey,
   SectionGroup,
+  TableRowValue,
 } from "./types";
 
 export const SECTION_DISPLAY_ORDER = [
   "General Information",
+  "Personal Information",
+  "Contact",
+  "Passport",
+  "Travel Plan",
+  "Travel Information",
+  "Host / Invitation",
+  "Family Information",
+  "Educational Information",
+  "Education (Student)",
   "Work Information",
   "Work/Study Information",
-  "Educational Information",
-  "Family Information",
-  "Travel Information",
+  "Business (Businessman)",
+  "Employment (Employee)",
+  "Financial",
+  "Sponsor (Student)",
+  "Travel History",
+  "Additional Information",
+  "Additional Application Data",
 ] as const;
 
 export function addDaysToYmd(ymd: string, days: number): string | null {
@@ -328,6 +342,40 @@ export function getTableColumns(
     { key: "col1", label: "Name", placeholder: "Write here..." },
     { key: "col2", label: "Details", placeholder: "Write here..." },
   ];
+}
+
+export function getTableColumnsFromData(
+  fieldKey: string,
+  rows?: TableRowValue[],
+  language: "en" | "bn" = "en",
+): Array<{ key: string; label: string; placeholder?: string }> {
+  const predefined = getTableColumns(fieldKey, language);
+  if (predefined && predefined[0]?.key !== "col1") {
+    return predefined;
+  }
+
+  if (rows && rows.length > 0) {
+    const keys = new Set<string>();
+    for (const r of rows) {
+      if (r && typeof r === "object") {
+        for (const k of Object.keys(r)) {
+          if (k && r[k] !== undefined && r[k] !== null && String(r[k]).trim()) {
+            keys.add(k);
+          }
+        }
+      }
+    }
+    if (keys.size > 0) {
+      return Array.from(keys).map((k) => ({
+        key: k,
+        label: k
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (c) => c.toUpperCase()),
+      }));
+    }
+  }
+
+  return predefined;
 }
 
 export function cleanSimpleLabel(label: string): string {

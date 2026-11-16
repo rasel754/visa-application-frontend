@@ -44,6 +44,38 @@ const nextConfig: NextConfig = {
         source: "/api/admin/:path*",
         destination: `${backendOrigin}/api/admin/:path*`,
       },
+      {
+        source: "/api/super-admin/:path*",
+        destination: `${backendOrigin}/api/super-admin/:path*`,
+      },
+      {
+        source: "/api/company/:path*",
+        destination: `${backendOrigin}/api/company/:path*`,
+      },
+      {
+        source: "/api/public/:path*",
+        destination: `${backendOrigin}/api/public/:path*`,
+      },
+      {
+        source: "/api/submissions/:path*",
+        destination: `${backendOrigin}/api/submissions/:path*`,
+      },
+      {
+        source: "/api/applications/:path*",
+        destination: `${backendOrigin}/api/applications/:path*`,
+      },
+      {
+        source: "/api/forms/:path*",
+        destination: `${backendOrigin}/api/forms/:path*`,
+      },
+      {
+        source: "/api/links/:path*",
+        destination: `${backendOrigin}/api/links/:path*`,
+      },
+      {
+        source: "/api/otp/:path*",
+        destination: `${backendOrigin}/api/otp/:path*`,
+      },
     ];
   },
 };

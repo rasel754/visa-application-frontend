@@ -53,6 +53,11 @@ export default function ApplySuccessPage() {
               <p className="mt-1 text-3xl font-extrabold tracking-wide text-blue-800 sm:text-4xl">
                 {submission.reference}
               </p>
+              {submission.company?.name && (
+                <p className="mt-1 text-xs font-semibold text-slate-500">
+                  Agency: {submission.company.name}
+                </p>
+              )}
               <p className="mt-2 text-sm text-slate-600">
                 {t.success.saveNumberHint}
               </p>

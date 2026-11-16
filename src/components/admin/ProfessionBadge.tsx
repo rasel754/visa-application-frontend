@@ -1,6 +1,5 @@
 "use client";
 
-import { Badge } from "@/components/ui/badge";
 import { formatProfessionLabel } from "@/lib/field-helpers";
 import { ProfessionEnum } from "@/lib/types";
 
@@ -10,15 +9,15 @@ const PROFESSION_BADGE_MAP: Record<
 > = {
   STUDENT: {
     label: "Student",
-    className: "border-indigo-200 bg-indigo-50 text-indigo-800 hover:bg-indigo-50",
+    className: "border-[#bae6fd] bg-[#e0f2fe] text-[#0284c7]",
   },
   BUSINESSMAN: {
     label: "Businessman",
-    className: "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-50",
+    className: "border-[#fde68a] bg-[#fef9c3] text-[#b45309]",
   },
   EMPLOYEE: {
     label: "Employee",
-    className: "border-teal-200 bg-teal-50 text-teal-800 hover:bg-teal-50",
+    className: "border-[#99f6e4] bg-[#ccfbf1] text-[#0f766e]",
   },
 };
 
@@ -35,20 +34,18 @@ export function ProfessionBadge({
 }) {
   if (!profession) {
     return (
-      <Badge
-        variant="outline"
-        className="border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-50"
-      >
+      <span className="inline-block rounded border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-xs font-medium text-slate-500">
         {formatProfessionLabel(profession)}
-      </Badge>
+      </span>
     );
   }
 
   const meta = PROFESSION_BADGE_MAP[profession];
   return (
-    <Badge variant="outline" className={meta.className}>
+    <span
+      className={`inline-block rounded border px-2.5 py-0.5 text-xs font-medium ${meta.className}`}
+    >
       {meta.label}
-    </Badge>
+    </span>
   );
 }
-

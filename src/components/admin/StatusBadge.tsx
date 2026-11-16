@@ -13,27 +13,27 @@ interface StatusMeta {
 const STATUS_META: Record<SubmissionStatus, StatusMeta> = {
   NEW: {
     label: "New",
-    classes: "border-blue-200 bg-blue-50 text-blue-800",
+    classes: "border-sky-300 bg-sky-50 text-sky-800",
     icon: Clock,
   },
   CHECKED: {
     label: "Checked",
-    classes: "border-amber-200 bg-amber-50 text-amber-900",
+    classes: "border-amber-300 bg-amber-50 text-amber-900",
     icon: FileSearch,
   },
   PROCESSING: {
     label: "Processing",
-    classes: "border-indigo-200 bg-indigo-50 text-indigo-800",
+    classes: "border-indigo-300 bg-indigo-50 text-indigo-800",
     icon: Loader,
   },
   COMPLETED: {
     label: "Completed",
-    classes: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    classes: "border-emerald-300 bg-emerald-50 text-emerald-800",
     icon: CheckCircle2,
   },
   REJECTED: {
     label: "Rejected",
-    classes: "border-red-200 bg-red-50 text-red-800",
+    classes: "border-red-300 bg-red-50 text-red-800",
     icon: XCircle,
   },
 };
@@ -57,11 +57,10 @@ export function StatusBadge({ status }: { status: SubmissionStatus }) {
   return (
     <Badge
       variant="outline"
-      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-semibold ${meta.classes}`}
+      className={`inline-flex items-center gap-1.5 rounded-sm px-2 py-0.5 text-xs font-semibold ${meta.classes}`}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
       <span>{meta.label}</span>
     </Badge>
   );
 }
-

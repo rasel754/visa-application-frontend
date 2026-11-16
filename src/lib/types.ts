@@ -96,9 +96,80 @@ export interface SubmissionDocumentMeta {
   createdAt: string;
 }
 
+export interface Company {
+  id: string;
+  name: string;
+  slug: string;
+  prefix: string;
+  logoUrl?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type Role = "SUPER_ADMIN" | "COMPANY";
+
+export interface AdminUserSummary {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  companyId?: string | null;
+  createdAt: string;
+}
+
+export interface CompanyBreakdownItem {
+  id: string;
+  name: string;
+  slug: string;
+  prefix: string;
+  isActive: boolean;
+  createdAt: string;
+  totalApplications: number;
+  totalUsers: number;
+}
+
+export interface SuperAdminStats {
+  companies: {
+    total: number;
+    active: number;
+    suspended: number;
+  };
+  submissions: {
+    total: number;
+    today: number;
+    byStatus: Record<SubmissionStatus, number>;
+  };
+  companyBreakdown: CompanyBreakdownItem[];
+}
+
+export interface CompanyWithCounts extends Company {
+  _count?: {
+    users: number;
+    applications: number;
+    inviteLinks: number;
+  };
+  users?: Array<{
+    id: string;
+    email: string;
+    name: string;
+    role: Role;
+    createdAt: string;
+  }>;
+}
+
 export interface SubmissionSummary {
   id: string;
   reference: string;
+  companyId?: string;
+  company?: {
+    id: string;
+    name: string;
+    slug: string;
+    prefix: string;
+  } | null;
   countryCode: string;
   countryName: string;
   visaType: string;
@@ -125,6 +196,8 @@ export interface SubmissionDetailSection {
 export interface SubmissionDetail {
   id: string;
   reference: string;
+  companyId?: string;
+  company?: Company | null;
   countryCode: string;
   countryName: string;
   visaType: string;
@@ -159,8 +232,12 @@ export interface PaginatedSubmissions {
 
 export interface AdminUser {
   id: string;
+  userId?: string;
   email: string;
   name: string;
+  role?: Role;
+  companyId?: string | null;
+  company?: Company | null;
 }
 
 export interface AdminStats {
@@ -185,6 +262,7 @@ export interface LinkResolution {
   valid: boolean;
   country_code: string | null;
   profession: ProfessionKey | null;
+  company?: Company | null;
 }
 
 export interface OtpSendResponse {
@@ -249,6 +327,11 @@ export interface BlockedPhoneItem {
 export interface SubmitSuccessPayload {
   reference: string;
   downloadToken: string;
+  company?: {
+    name: string;
+    slug: string;
+    prefix: string;
+  };
 }
 
 export interface ApiErrorBody {

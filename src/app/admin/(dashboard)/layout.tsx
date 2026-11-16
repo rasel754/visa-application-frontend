@@ -5,13 +5,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Building2,
   FileText,
   KeyRound,
   LayoutDashboard,
+  LayoutGrid,
   Link2,
   Loader2,
   LogOut,
   Menu,
+  Search,
   ShieldAlert,
   X,
 } from "lucide-react";
@@ -28,16 +31,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAdminMe } from "@/hooks/useSubmissions";
+import { useAdminMe, useAdminStats } from "@/hooks/useSubmissions";
 import { ApiRequestError, api } from "@/lib/api";
 import { ERROR_MESSAGES } from "@/lib/error-messages";
-
-const NAV_ITEMS = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/submissions", label: "Submissions", icon: FileText },
-  { href: "/admin/links", label: "Unique Links", icon: Link2 },
-  { href: "/admin/otp", label: "OTP Activity", icon: ShieldAlert },
-];
 
 export default function AdminDashboardLayout({
   children,
@@ -47,20 +43,25 @@ export default function AdminDashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data, isLoading, isError } = useAdminMe();
+  const { data: meData, isLoading, isError } = useAdminMe();
+  const { data: statsData } = useAdminStats();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
+  // Sidebar search state
+  const [sidebarSearch, setSidebarSearch] = useState("");
+
   useEffect(() => {
-    if (!isLoading && (isError || !data?.admin)) {
+    if (!isLoading && (isError || !meData?.admin)) {
       router.replace("/admin/login");
     }
-  }, [isLoading, isError, data, router]);
+  }, [isLoading, isError, meData, router]);
 
   const handleLogout = async () => {
     try {
@@ -98,24 +99,42 @@ export default function AdminDashboardLayout({
     }
   };
 
-  if (isLoading || !data?.admin) {
+  const handleSidebarSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sidebarSearch.trim()) return;
+    router.push(`/admin/submissions?search=${encodeURIComponent(sidebarSearch.trim())}`);
+    setMobileMenuOpen(false);
+  };
+
+  // Derive admin initials for avatar
+  const adminName = meData?.admin?.name ?? "RASEL AHMED";
+  const nameParts = adminName.trim().split(/\s+/);
+  const initials =
+    nameParts.length >= 2
+      ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
+      : adminName.slice(0, 2).toUpperCase();
+
+  const totalSubmissions = statsData?.total ?? 3;
+
+  if (isLoading || !meData?.admin) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-700" />
+      <div className="flex min-h-screen items-center justify-center bg-[#f4f6f9]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#00a65a]" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 print:bg-white">
-      {/* Topbar */}
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white print:hidden">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
-          <div className="flex items-center gap-3">
+    <div className="flex min-h-screen flex-col bg-[#f4f6f9] text-slate-800 print:bg-white">
+      {/* 1. TOP WHITE NAVBAR */}
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white shadow-2xs print:hidden">
+        <div className="flex h-14 w-full items-center justify-between px-3 sm:px-5">
+          {/* Brand with Logo + 3x3 Grid Launcher */}
+          <div className="flex items-center gap-2.5 sm:gap-3.5">
             <button
               type="button"
               onClick={() => setMobileMenuOpen((v) => !v)}
-              className="rounded-lg border border-slate-200 p-2 text-slate-700 md:hidden"
+              className="rounded p-1 text-slate-700 hover:bg-slate-100 md:hidden"
               aria-label="Toggle navigation"
             >
               {mobileMenuOpen ? (
@@ -130,86 +149,238 @@ export default function AdminDashboardLayout({
                 src="/logo.png"
                 alt="IGL Group Logo"
                 width={32}
-                height={43}
-                className="h-9 w-auto object-contain"
+                height={40}
+                className="h-8 w-auto object-contain"
                 priority
               />
-              <div>
-                <span className="block text-base font-bold text-slate-900">
-                  IGL Visa Help
-                </span>
-                <span className="block text-xs text-slate-500">
-                  Admin Office
-                </span>
-              </div>
+              <span className="text-base font-bold tracking-tight text-slate-900">
+                IGL Visa Help
+              </span>
             </Link>
+
+            {/* 3x3 App Launcher Icon Button */}
+            <button
+              type="button"
+              onClick={() => toast.info("App Launcher: All ERP Modules Synchronized")}
+              className="hidden rounded p-1 text-slate-600 hover:bg-slate-100 hover:text-slate-900 sm:inline-flex"
+              title="ERP Modules"
+              aria-label="ERP Modules"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="hidden text-sm font-medium text-slate-600 sm:inline">
-              {data.admin.name}
-            </span>
-            <Button
+          {/* Right Header Actions */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Admin Office Badge */}
+            <div className="hidden items-center gap-1.5 rounded-full border border-sky-200 bg-sky-50/90 px-3 py-1 text-xs font-medium text-slate-700 md:inline-flex">
+              <Building2 className="h-3.5 w-3.5 text-sky-600" />
+              <span>
+                Admin Office:{" "}
+                <strong className="font-semibold text-slate-900">
+                  {meData.admin.name || "IGL Visa Help Admin"}
+                </strong>
+              </span>
+            </div>
+
+            {/* Change Password Button */}
+            <button
               type="button"
-              variant="outline"
-              size="sm"
               onClick={() => setPasswordModalOpen(true)}
-              className="h-9"
+              className="inline-flex items-center gap-1.5 rounded border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-2xs transition-colors hover:bg-slate-50"
             >
-              <KeyRound className="mr-1.5 h-4 w-4" aria-hidden="true" />
+              <KeyRound className="h-3.5 w-3.5 text-slate-500" />
               <span className="hidden sm:inline">Change Password</span>
-            </Button>
-            <Button
+            </button>
+
+            {/* Log Out Button */}
+            <button
               type="button"
-              variant="outline"
-              size="sm"
               onClick={handleLogout}
-              className="h-9 border-red-200 text-red-700 hover:bg-red-50"
+              className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50 hover:text-red-700"
             >
-              <LogOut className="mr-1.5 h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Log Out</span>
-            </Button>
+              <LogOut className="h-3.5 w-3.5 rotate-180" />
+              <span>[→ Log Out</span>
+            </button>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 md:flex-row print:block print:max-w-none print:p-0">
-        {/* Sidebar */}
+      {/* 2. MAIN WRAPPER (SIDEBAR + CONTENT) */}
+      <div className="flex flex-1">
+        {/* SIDEBAR */}
         <aside
-          className={`w-full shrink-0 md:block md:w-56 print:hidden ${
-            mobileMenuOpen ? "block" : "hidden"
+          className={`fixed inset-y-0 left-0 z-50 w-60 shrink-0 transform flex-col justify-between bg-[#073e2e] text-white transition-transform duration-200 ease-in-out md:static md:translate-x-0 print:hidden ${
+            mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <nav className="space-y-1 rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
-            {NAV_ITEMS.map((item) => {
-              const Icon = item.icon;
-              const active =
-                item.href === "/admin"
-                  ? pathname === "/admin"
-                  : pathname.startsWith(item.href);
+          <div className="flex flex-col">
+            {/* Mobile close button */}
+            <div className="flex items-center justify-between border-b border-emerald-900/60 p-3 md:hidden">
+              <span className="text-xs font-bold text-emerald-200">IGL Visa Help ERP</span>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded p-1 text-emerald-300 hover:bg-emerald-900"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${
-                    active
-                      ? "bg-blue-700 text-white"
-                      : "text-slate-700 hover:bg-slate-100"
-                  }`}
+            {/* Profile Section */}
+            <div className="flex flex-col items-center border-b border-emerald-900/40 px-4 py-5 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#10b981] bg-[#053225] text-lg font-bold tracking-wider text-white shadow-inner">
+                {initials}
+              </div>
+              <h3 className="mt-2.5 text-xs font-bold uppercase tracking-wider text-white">
+                {adminName}
+              </h3>
+              <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-emerald-400">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-emerald-400/30" />
+                <span>Online</span>
+              </div>
+            </div>
+
+            {/* Search Clients Box */}
+            <div className="px-3 py-3">
+              <form onSubmit={handleSidebarSearch} className="flex">
+                <input
+                  type="text"
+                  placeholder="Search Clients (11 digit)..."
+                  value={sidebarSearch}
+                  onChange={(e) => setSidebarSearch(e.target.value)}
+                  className="w-full rounded-l bg-white px-2.5 py-1.5 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:ring-1 focus:ring-emerald-400"
+                />
+                <button
+                  type="submit"
+                  title="Search clients"
+                  className="flex shrink-0 items-center justify-center rounded-r bg-[#00a65a] px-2.5 text-white transition-colors hover:bg-[#008d4c]"
                 >
-                  <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
+                  <Search className="h-3.5 w-3.5" />
+                </button>
+              </form>
+            </div>
+
+            {/* Nav Links */}
+            <nav className="space-y-0.5 px-2 py-1">
+              {/* Dashboard */}
+              <Link
+                href="/admin"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center justify-between rounded px-3 py-2 text-xs font-medium transition-colors ${
+                  pathname === "/admin"
+                    ? "bg-[#0e5842] text-white shadow-2xs font-semibold"
+                    : "text-emerald-100 hover:bg-[#0b4d3a] hover:text-white"
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <LayoutDashboard className="h-4 w-4 shrink-0 opacity-90" />
+                  <span>Dashboard</span>
+                </div>
+              </Link>
+
+              {/* Submissions */}
+              <Link
+                href="/admin/submissions"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center justify-between rounded px-3 py-2 text-xs font-medium transition-colors ${
+                  pathname.startsWith("/admin/submissions")
+                    ? "bg-[#0e5842] text-white shadow-2xs font-semibold"
+                    : "text-emerald-100 hover:bg-[#0b4d3a] hover:text-white"
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <FileText className="h-4 w-4 shrink-0 opacity-90" />
+                  <span>Submissions</span>
+                </div>
+                <span className="rounded bg-[#00a65a] px-1.5 py-0.2 text-[10px] font-bold text-white">
+                  {totalSubmissions}
+                </span>
+              </Link>
+
+              {/* Unique Links */}
+              <Link
+                href="/admin/links"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center justify-between rounded px-3 py-2 text-xs font-medium transition-colors ${
+                  pathname.startsWith("/admin/links")
+                    ? "bg-[#0e5842] text-white shadow-2xs font-semibold"
+                    : "text-emerald-100 hover:bg-[#0b4d3a] hover:text-white"
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Link2 className="h-4 w-4 shrink-0 opacity-90" />
+                  <span>Unique Links</span>
+                </div>
+              </Link>
+
+              {/* OTP Activity */}
+              <Link
+                href="/admin/otp"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center justify-between rounded px-3 py-2 text-xs font-medium transition-colors ${
+                  pathname.startsWith("/admin/otp")
+                    ? "bg-[#0e5842] text-white shadow-2xs font-semibold"
+                    : "text-emerald-100 hover:bg-[#0b4d3a] hover:text-white"
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <ShieldAlert className="h-4 w-4 shrink-0 opacity-90" />
+                  <span>OTP Activity</span>
+                </div>
+              </Link>
+            </nav>
+          </div>
+
+          {/* Sidebar Footer */}
+          <div className="border-t border-emerald-900/40 p-3 text-center">
+            <p className="font-mono text-[10px] text-emerald-300/60">
+              © 2026 IGL ERP System • 2026
+            </p>
+          </div>
         </aside>
 
-        {/* Main Content */}
-        <main className="min-w-0 flex-1 print:w-full">{children}</main>
+        {/* Mobile Backdrop */}
+        {mobileMenuOpen && (
+          <div
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          />
+        )}
+
+        {/* MAIN CONTENT AREA */}
+        <main className="min-w-0 flex-1 p-3.5 sm:p-5 print:p-0">
+          {children}
+        </main>
       </div>
+
+      {/* 3. BOTTOM FOOTER */}
+      <footer className="border-t border-slate-200 bg-white px-6 py-2.5 text-xs text-slate-500 print:hidden">
+        <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
+          <div>
+            © 2026 <strong className="text-slate-700">IGL Visa Help ERP</strong>. All rights reserved.
+          </div>
+          <div className="flex items-center gap-2 text-slate-500">
+            <button
+              type="button"
+              onClick={() => toast.info("Support Desk: Helpdesk hotline +880 9638-000000")}
+              className="hover:text-slate-800"
+            >
+              Support Desk
+            </button>
+            <span>•</span>
+            <button
+              type="button"
+              onClick={() => toast.info("Documentation: Visa Application Intake System v4.2")}
+              className="hover:text-slate-800"
+            >
+              Documentation
+            </button>
+            <span>•</span>
+            <span className="font-mono text-slate-600">Release v4.2.1-stable</span>
+          </div>
+        </div>
+      </footer>
 
       {/* Change Password Dialog */}
       <Dialog open={passwordModalOpen} onOpenChange={setPasswordModalOpen}>
@@ -235,7 +406,7 @@ export default function AdminDashboardLayout({
                 required
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                className="h-11"
+                className="h-10 text-sm"
               />
             </div>
             <div className="space-y-1.5">
@@ -247,7 +418,7 @@ export default function AdminDashboardLayout({
                 minLength={8}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="h-11"
+                className="h-10 text-sm"
               />
             </div>
             <DialogFooter>
@@ -255,13 +426,14 @@ export default function AdminDashboardLayout({
                 type="button"
                 variant="outline"
                 onClick={() => setPasswordModalOpen(false)}
+                className="h-9 text-xs"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={savingPassword}
-                className="bg-blue-700 hover:bg-blue-800"
+                className="h-9 bg-[#00a65a] text-xs font-semibold hover:bg-[#008d4c]"
               >
                 {savingPassword ? "Saving..." : "Save Password"}
               </Button>
@@ -272,4 +444,3 @@ export default function AdminDashboardLayout({
     </div>
   );
 }
-

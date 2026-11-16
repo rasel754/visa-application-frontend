@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { format } from "date-fns";
-import { formatDateYmdDisplay, getTableColumns } from "@/lib/field-helpers";
+import { formatDateYmdDisplay, getTableColumnsFromData } from "@/lib/field-helpers";
 import { isTableRowNonEmpty } from "@/lib/form-validation";
 import {
   FormDocument,
@@ -67,10 +67,10 @@ export function PrintSheet({ detail }: PrintSheetProps) {
                   if (field.key === "has_no_education") return null;
                   const val = detail.answers[field.key];
                 if (field.type === "table") {
-                  const columns = getTableColumns(field.key);
                   const rows = Array.isArray(val)
                     ? (val as TableRowValue[]).filter(isTableRowNonEmpty)
                     : [];
+                  const columns = getTableColumnsFromData(field.key, rows);
                   return (
                     <div key={field.key} className="p-2.5 text-xs">
                       <p className="mb-1.5 font-semibold text-black">

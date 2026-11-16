@@ -63,9 +63,10 @@ import { useLanguageStore } from "@/store/language-store";
 
 interface SectionWizardProps {
   intakeToken?: string;
+  companySlug?: string;
 }
 
-export function SectionWizard({ intakeToken }: SectionWizardProps) {
+export function SectionWizard({ intakeToken, companySlug }: SectionWizardProps) {
   const router = useRouter();
   const language = useLanguageStore((s) => s.language);
   const t = getUiStrings(language);
@@ -132,6 +133,7 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
   const [lockedProfession, setLockedProfession] = useState<ProfessionKey | null>(
     null,
   );
+  const [resolvedCompanySlug, setResolvedCompanySlug] = useState<string | null>(null);
   const linkInitializedRef = useRef(false);
 
   const {
@@ -175,6 +177,9 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
         if (!res.valid) {
           setLinkError(ERROR_MESSAGES.formNotFound);
           return;
+        }
+        if (res.company?.slug) {
+          setResolvedCompanySlug(res.company.slug);
         }
         if (res.country_code) {
           setLockedCountryCode(res.country_code);
@@ -594,10 +599,12 @@ export function SectionWizard({ intakeToken }: SectionWizardProps) {
 
     setIsSubmitting(true);
     try {
+      const targetCompanySlug = resolvedCompanySlug || companySlug;
       const result = await api.submitApplication({
         countryCode,
         profession,
         answers,
+        companySlug: targetCompanySlug,
         intakeToken,
         otpToken: otpTokenToUse,
         files,

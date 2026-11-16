@@ -2,7 +2,10 @@ import { ERROR_MESSAGES } from "./error-messages";
 import {
   AdminStats,
   AdminUser,
+  AdminUserSummary,
   BlockedPhoneItem,
+  Company,
+  CompanyWithCounts,
   CountrySummary,
   FormAnswers,
   IntakeLinkItem,
@@ -17,6 +20,7 @@ import {
   SubmissionDetail,
   SubmissionStatus,
   SubmitSuccessPayload,
+  SuperAdminStats,
   UploadedDocumentEntry,
   VisitForm,
 } from "./types";
@@ -26,9 +30,17 @@ export const API_BASE_URL = (
 ).replace(/\/+$/, "");
 
 function getBaseUrlForPath(path: string): string {
-  const isAdminOrAuth = path.startsWith("/auth/") || path.startsWith("/admin/");
+  const isProxied =
+    path.startsWith("/auth/") ||
+    path.startsWith("/admin/") ||
+    path.startsWith("/super-admin/") ||
+    path.startsWith("/company/") ||
+    path.startsWith("/public/") ||
+    path.startsWith("/submissions/") ||
+    path.startsWith("/applications/");
+
   if (
-    isAdminOrAuth &&
+    isProxied &&
     typeof window !== "undefined" &&
     /^https?:\/\//i.test(API_BASE_URL)
   ) {
@@ -62,6 +74,7 @@ export class ApiRequestError extends Error {
 
 function fallbackMessageForStatus(status: number, isUpload = false): string {
   if (status === 401) return ERROR_MESSAGES.sessionExpired;
+  if (status === 403) return "Access denied or account suspended.";
   if (status === 404) return ERROR_MESSAGES.formNotFound;
   if (status === 429) return ERROR_MESSAGES.loginTooManyTries;
   if (isUpload) return ERROR_MESSAGES.uploadFailed;
@@ -137,6 +150,10 @@ export const api = {
     return request<VisitForm>(`/forms/${encodeURIComponent(countryCode)}`);
   },
 
+  fetchPublicCompany(slug: string): Promise<Company> {
+    return request<Company>(`/public/companies/${encodeURIComponent(slug)}`);
+  },
+
   resolveIntakeLink(token: string): Promise<LinkResolution> {
     return request<LinkResolution>(`/links/${encodeURIComponent(token)}`);
   },
@@ -159,6 +176,7 @@ export const api = {
     countryCode: string;
     profession: ProfessionKey;
     answers: FormAnswers;
+    companySlug?: string;
     intakeToken?: string;
     otpToken: string;
     files: Record<string, UploadedDocumentEntry>;
@@ -171,6 +189,7 @@ export const api = {
         profession: payload.profession,
         answers: payload.answers,
         otpToken: payload.otpToken,
+        ...(payload.companySlug ? { companySlug: payload.companySlug } : {}),
         ...(payload.intakeToken ? { intakeToken: payload.intakeToken } : {}),
       }),
     );
@@ -193,11 +212,11 @@ export const api = {
   },
 
   getPublicPdfUrl(downloadToken: string): string {
-    return `${API_BASE_URL}/submissions/by-token/${encodeURIComponent(downloadToken)}/pdf`;
+    return `${getBaseUrlForPath("/submissions/")}/submissions/by-token/${encodeURIComponent(downloadToken)}/pdf`;
   },
 
-  loginAdmin(email: string, password: string): Promise<{ admin: AdminUser }> {
-    return request<{ admin: AdminUser }>("/auth/login", {
+  loginAdmin(email: string, password: string): Promise<{ user: AdminUser; admin: AdminUser }> {
+    return request<{ user: AdminUser; admin: AdminUser }>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
@@ -209,8 +228,8 @@ export const api = {
     });
   },
 
-  fetchAdminMe(): Promise<{ admin: AdminUser }> {
-    return request<{ admin: AdminUser }>("/auth/me");
+  fetchAdminMe(): Promise<{ user: AdminUser; admin: AdminUser }> {
+    return request<{ user: AdminUser; admin: AdminUser }>("/auth/me");
   },
 
   changeAdminPassword(
@@ -223,11 +242,134 @@ export const api = {
     });
   },
 
+  // -------------------------------------------------------------
+  // SUPER ADMIN ENDPOINTS
+  // -------------------------------------------------------------
+  fetchSuperAdminStats(): Promise<SuperAdminStats> {
+    return request<SuperAdminStats>("/super-admin/stats");
+  },
+
+  fetchCompanies(): Promise<{ items: CompanyWithCounts[] }> {
+    return request<{ items: CompanyWithCounts[] }>("/super-admin/companies");
+  },
+
+  createCompany(payload: {
+    name: string;
+    slug: string;
+    prefix: string;
+    logoUrl?: string | null;
+    phone?: string | null;
+    address?: string | null;
+    adminEmail: string;
+    adminPassword: string;
+    adminName: string;
+  }): Promise<{ company: Company; user: AdminUser }> {
+    return request<{ company: Company; user: AdminUser }>("/super-admin/companies", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  toggleCompanyStatus(
+    id: string,
+    isActive: boolean,
+  ): Promise<Company> {
+    return request<Company>(`/super-admin/companies/${encodeURIComponent(id)}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ isActive }),
+    });
+  },
+
+  fetchCompanyDetail(id: string): Promise<CompanyWithCounts> {
+    return request<CompanyWithCounts>(`/super-admin/companies/${encodeURIComponent(id)}`);
+  },
+
+  provisionCompanyUser(
+    companyId: string,
+    payload: { email: string; password: string; name: string },
+  ): Promise<AdminUser> {
+    return request<AdminUser>(`/super-admin/companies/${encodeURIComponent(companyId)}/users`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // -------------------------------------------------------------
+  // TENANT COMPANY ENDPOINTS
+  // -------------------------------------------------------------
+  fetchCompanyProfile(): Promise<CompanyWithCounts> {
+    return request<CompanyWithCounts>("/company/profile");
+  },
+
+  updateCompanyProfile(payload: {
+    phone?: string | null;
+    address?: string | null;
+    logoUrl?: string | null;
+  }): Promise<Company> {
+    return request<Company>("/company/profile", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  fetchCompanyStats(): Promise<AdminStats> {
+    return request<AdminStats>("/company/stats");
+  },
+
+  fetchCompanyLinks(): Promise<{ items: IntakeLinkItem[] }> {
+    return request<{ items: IntakeLinkItem[] }>("/company/links");
+  },
+
+  createCompanyLink(payload: {
+    countryCode?: string | null;
+    profession?: string | null;
+    expiresInDays?: number | null;
+  }): Promise<IntakeLinkItem> {
+    return request<IntakeLinkItem>("/company/links", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteCompanyLink(id: string): Promise<{ ok: boolean }> {
+    return request<{ ok: boolean }>(`/company/links/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+  },
+
+  // -------------------------------------------------------------
+  // AGENCY STAFF MANAGEMENT (EXCLUSIVELY AGENCY ADMIN)
+  // -------------------------------------------------------------
+  fetchCompanyStaff(): Promise<{ items: AdminUserSummary[] }> {
+    return request<{ items: AdminUserSummary[] }>("/company/staff");
+  },
+
+  createCompanyStaff(payload: {
+    name: string;
+    email: string;
+    password: string;
+  }): Promise<AdminUserSummary> {
+    return request<AdminUserSummary>("/company/staff", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteCompanyStaff(id: string): Promise<{ ok: boolean }> {
+    return request<{ ok: boolean }>(`/company/staff/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+  },
+
+  // -------------------------------------------------------------
+  // SHARED SUBMISSIONS ENDPOINTS
+  // -------------------------------------------------------------
   fetchAdminStats(): Promise<AdminStats> {
     return request<AdminStats>("/admin/stats");
   },
 
   fetchAdminSubmissions(params: {
+    companyId?: string;
     search?: string;
     country?: string;
     profession?: string;
@@ -238,6 +380,7 @@ export const api = {
     limit?: number;
   }): Promise<PaginatedSubmissions> {
     const qs = new URLSearchParams();
+    if (params.companyId) qs.set("companyId", params.companyId);
     if (params.search) qs.set("search", params.search);
     if (params.country) qs.set("country", params.country);
     if (params.profession) qs.set("profession", params.profession);
@@ -293,6 +436,7 @@ export const api = {
   },
 
   createAdminLink(payload: {
+    companyId?: string | null;
     countryCode?: string | null;
     profession?: string | null;
     expiresInDays?: number | null;
