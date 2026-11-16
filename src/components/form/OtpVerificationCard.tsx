@@ -422,7 +422,7 @@ export function OtpVerificationCard({
           </div>
 
           {/* Requirement 7: Extra Big 6-Digit OTP Input Boxes */}
-          <div className="flex items-center justify-between gap-2 sm:gap-3">
+          <div className="flex items-center justify-between gap-2 sm:gap-3.5 my-2">
             {digits.map((digit, idx) => {
               const isFilled = Boolean(digit);
               return (
@@ -442,11 +442,11 @@ export function OtpVerificationCard({
                   onChange={(e) => handleDigitChange(idx, e.target.value)}
                   onKeyDown={(e) => handleDigitKeyDown(idx, e)}
                   onPaste={handleDigitPaste}
-                  className={`h-16 w-11 sm:h-20 sm:w-16 rounded-2xl border-2 text-center font-mono text-3xl sm:text-4xl font-black text-slate-900 transition-all duration-150 outline-none select-none ${
+                  className={`h-16 w-12 sm:h-24 sm:w-20 rounded-2xl border-2 sm:border-[3px] text-center font-mono text-3xl sm:text-5xl font-black text-slate-900 transition-all duration-150 outline-none select-none shadow-xs ${
                     isFilled
-                      ? "border-slate-800 bg-white shadow-xs"
-                      : "border-slate-300 bg-slate-50/60"
-                  } focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-50`}
+                      ? "border-blue-700 bg-white shadow-md text-blue-950 scale-[1.02]"
+                      : "border-slate-300 bg-slate-50/80 hover:border-slate-400"
+                  } focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-500/25 focus:scale-105 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-50`}
                   placeholder="•"
                 />
               );

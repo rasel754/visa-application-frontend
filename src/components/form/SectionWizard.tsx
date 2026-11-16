@@ -269,7 +269,8 @@ export function SectionWizard({ intakeToken, companySlug }: SectionWizardProps) 
     [commonDocuments, additionalDocuments],
   );
 
-  const hasDocumentsStep = allDocuments.length > 0;
+  // Requirement: "Upload Your Documents" removed from the intake form wizard
+  const hasDocumentsStep = false;
 
   const stepNames = useMemo(() => {
     if (!visitForm || !profession) {
@@ -389,9 +390,15 @@ export function SectionWizard({ intakeToken, companySlug }: SectionWizardProps) 
       }
     }
 
-    const nextAnswers: FormAnswers = { ...answers, [field.key]: value };
+    const nextAnswers: FormAnswers = {
+      ...answers,
+      [field.key]: value,
+      ...(profession ? { profession } : {}),
+    };
+
     if (
       field.key === "has_no_education" &&
+      profession !== "student" &&
       (value === "yes" || value === "true" || (value as unknown) === true)
     ) {
       setFieldErrors((prev) => {
@@ -402,9 +409,10 @@ export function SectionWizard({ intakeToken, companySlug }: SectionWizardProps) 
         delete next["has_no_education"];
         return next;
       });
-    } else if (fieldErrors[field.key]) {
-      const nextErr = validateFieldValue(field, value, nextAnswers);
+    } else {
       setFieldErrors((prev) => {
+        if (!prev[field.key]) return prev;
+        const nextErr = validateFieldValue(field, value, nextAnswers);
         const next = { ...prev };
         if (nextErr) {
           next[field.key] = nextErr;
@@ -418,7 +426,14 @@ export function SectionWizard({ intakeToken, companySlug }: SectionWizardProps) 
   };
 
   const handleFieldBlur = (field: FormField) => {
-    const err = validateFieldValue(field, answers[field.key], answers);
+    // Read directly from synchronous Zustand store to avoid stale closure
+    const storeAnswers = useIntakeStore.getState().answers;
+    const currentVal = storeAnswers[field.key];
+    const answersWithContext: FormAnswers = {
+      ...storeAnswers,
+      ...(profession ? { profession } : {}),
+    };
+    const err = validateFieldValue(field, currentVal, answersWithContext);
     setFieldErrors((prev) => {
       const next = { ...prev };
       if (err) {
@@ -543,7 +558,11 @@ export function SectionWizard({ intakeToken, companySlug }: SectionWizardProps) 
     ) {
       const sectionGroup = sections[safeStepIndex - sectionStartIndex];
       if (sectionGroup) {
-        const errors = validateSectionFields(sectionGroup.fields, answers);
+        const answersWithContext: FormAnswers = {
+          ...answers,
+          ...(profession ? { profession } : {}),
+        };
+        const errors = validateSectionFields(sectionGroup.fields, answersWithContext);
         if (Object.keys(errors).length > 0) {
           setFieldErrors((prev) => ({ ...prev, ...errors }));
           setTopErrorTitle(ERROR_MESSAGES.genericValidation);
@@ -554,6 +573,15 @@ export function SectionWizard({ intakeToken, companySlug }: SectionWizardProps) 
           if (firstKey) scrollToField(firstKey);
           return;
         }
+
+        // Section is completely valid: clear any old field errors for this section
+        setFieldErrors((prev) => {
+          const next = { ...prev };
+          for (const f of sectionGroup.fields) {
+            delete next[f.key];
+          }
+          return next;
+        });
       }
       setStepIndex(safeStepIndex + 1);
       scrollToTop();
@@ -572,6 +600,14 @@ export function SectionWizard({ intakeToken, companySlug }: SectionWizardProps) 
         if (firstKey) scrollToField(firstKey);
         return;
       }
+      // Documents valid: clear document errors
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        for (const d of allDocuments) {
+          delete next[d.key];
+        }
+        return next;
+      });
       setStepIndex(reviewStepIndex);
       scrollToTop();
     }
@@ -660,10 +696,11 @@ export function SectionWizard({ intakeToken, companySlug }: SectionWizardProps) 
       return;
     }
 
+    const answersWithContext = { ...answers, profession };
     const allErrors = validateFullApplication(
       allFields,
-      allDocuments,
-      answers,
+      [],
+      answersWithContext,
       files,
     );
     if (Object.keys(allErrors).length > 0) {
@@ -675,6 +712,7 @@ export function SectionWizard({ intakeToken, companySlug }: SectionWizardProps) 
       scrollToTop();
       return;
     }
+    setFieldErrors({});
 
     const rawPhone =
       typeof answers["phone_primary"] === "string"
@@ -907,13 +945,37 @@ export function SectionWizard({ intakeToken, companySlug }: SectionWizardProps) 
       ? sections[safeStepIndex - sectionStartIndex]
       : null;
 
-  const reviewValidationErrors =
-    safeStepIndex === reviewStepIndex && visitForm && profession
-      ? {
-          ...validateFullApplication(allFields, allDocuments, answers, files),
-          ...fieldErrors,
+  const reviewValidationErrors: Record<string, string> = (() => {
+    if (safeStepIndex !== reviewStepIndex || !visitForm || !profession) {
+      return {};
+    }
+    const answersWithContext = { ...answers, profession };
+    const appErrors = validateFullApplication(
+      allFields,
+      [],
+      answersWithContext,
+      files,
+    );
+
+    // Merge in any external errors (e.g. from backend submission attempt)
+    // ONLY if the field is still genuinely invalid based on current answers
+    const merged = { ...appErrors };
+    for (const [key, msg] of Object.entries(fieldErrors)) {
+      if (merged[key]) continue;
+      const field = allFields.find((f) => f.key === key);
+      if (field) {
+        const valErr = validateFieldValue(
+          field,
+          answers[key],
+          answersWithContext,
+        );
+        if (valErr) {
+          merged[key] = msg || valErr;
         }
-      : {};
+      }
+    }
+    return merged;
+  })();
 
   const currentStepErrorItems =
     safeStepIndex === reviewStepIndex
@@ -922,7 +984,19 @@ export function SectionWizard({ intakeToken, companySlug }: SectionWizardProps) 
         ? buildErrorItems(
             Object.fromEntries(
               currentSectionGroup.fields
-                .map((f) => [f.key, fieldErrors[f.key]])
+                .map((f) => {
+                  const err = fieldErrors[f.key];
+                  if (!err) return [f.key, ""];
+                  const isStillErr = validateFieldValue(
+                    f,
+                    answers[f.key],
+                    {
+                      ...answers,
+                      ...(profession ? { profession } : {}),
+                    },
+                  );
+                  return isStillErr ? [f.key, err] : [f.key, ""];
+                })
                 .filter((pair): pair is [string, string] => Boolean(pair[1])),
             ),
           )
@@ -1001,6 +1075,9 @@ export function SectionWizard({ intakeToken, companySlug }: SectionWizardProps) 
             locked={Boolean(lockedProfession)}
             onSelectProfession={(prof) => {
               setProfession(prof);
+              if (prof === "student") {
+                setAnswer("has_no_education", "");
+              }
               setTopErrorTitle(null);
             }}
           />
@@ -1106,6 +1183,7 @@ export function SectionWizard({ intakeToken, companySlug }: SectionWizardProps) 
               fieldErrors={fieldErrors}
               onChange={handleFieldChange}
               onBlurValidate={handleFieldBlur}
+              profession={profession}
             />
           </div>
         )}
@@ -1182,8 +1260,8 @@ export function SectionWizard({ intakeToken, companySlug }: SectionWizardProps) 
             visitForm={visitForm}
             profession={profession}
             sections={sections}
-            commonDocuments={commonDocuments}
-            additionalDocuments={additionalDocuments}
+            commonDocuments={[]}
+            additionalDocuments={[]}
             answers={answers}
             files={files}
             errorItems={currentStepErrorItems}

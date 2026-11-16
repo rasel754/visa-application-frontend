@@ -223,11 +223,6 @@ export function PrintSheet({ detail }: PrintSheetProps) {
       {/* Sections */}
       <div className="mt-5 space-y-5">
         {renderSectionList(detail.sections)}
-        {renderDocChecklist("Common Documents Checklist", detail.commonDocuments)}
-        {renderDocChecklist(
-          `Additional Documents (${detail.professionLabel})`,
-          detail.additionalDocuments,
-        )}
       </div>
 
       <p className="mt-6 border-t border-slate-300 pt-2 text-center text-xs text-slate-600">

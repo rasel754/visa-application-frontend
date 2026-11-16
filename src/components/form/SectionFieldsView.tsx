@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
   ChevronDown,
@@ -19,7 +19,7 @@ import {
   getLocalizedSubgroupName,
 } from "@/lib/field-helpers";
 import { toBanglaDigits } from "@/lib/i18n/bangla-data";
-import { AnswerValue, FormAnswers, FormField } from "@/lib/types";
+import { AnswerValue, FormAnswers, FormField, ProfessionKey } from "@/lib/types";
 import { useLanguageStore } from "@/store/language-store";
 
 interface SectionFieldsViewProps {
@@ -28,6 +28,7 @@ interface SectionFieldsViewProps {
   fieldErrors: Record<string, string>;
   onChange: (field: FormField, value: AnswerValue) => void;
   onBlurValidate: (field: FormField) => void;
+  profession?: ProfessionKey | null;
 }
 
 interface FieldSubgroupBucket {
@@ -51,6 +52,10 @@ const FULL_WIDTH_KEYS = new Set([
   "last_education_institution",
   "fathers_name",
   "mothers_name",
+  "spouse_name",
+  "child_1_name",
+  "child_2_name",
+  "sponsor_name",
 ]);
 
 const COLLAPSIBLE_OPTIONAL_SUBGROUPS = new Set<string>([]);
@@ -87,6 +92,7 @@ export function SectionFieldsView({
   fieldErrors,
   onChange,
   onBlurValidate,
+  profession,
 }: SectionFieldsViewProps) {
   const language = useLanguageStore((s) => s.language);
   const hasSubgroups = fields.some((f) => Boolean(f.subgroup));
@@ -268,23 +274,42 @@ export function SectionFieldsView({
     </div>
   );
 
+  const isStudent = profession === "student";
+
   const isEducationalSection = useMemo(() => {
     return fields.some(
       (f) =>
-        f.section === "Educational Information" ||
         f.key === "has_no_education" ||
         f.key === "last_education_degree",
     );
   }, [fields]);
 
   const hasNoEducation =
-    String(answers["has_no_education"] ?? "") === "yes" ||
-    String(answers["has_no_education"] ?? "") === "true" ||
-    (answers["has_no_education"] as unknown) === true ||
-    String(answers["no_education"] ?? "") === "yes" ||
-    (answers["no_education"] as unknown) === true;
+    !isStudent &&
+    (String(answers["has_no_education"] ?? "") === "yes" ||
+      String(answers["has_no_education"] ?? "") === "true" ||
+      (answers["has_no_education"] as unknown) === true ||
+      String(answers["no_education"] ?? "") === "yes" ||
+      (answers["no_education"] as unknown) === true);
+
+  // If profession is student and has_no_education was previously selected, clear it
+  useEffect(() => {
+    if (isStudent && answers["has_no_education"]) {
+      const hasNoEduField = fields.find((f) => f.key === "has_no_education") ?? {
+        key: "has_no_education",
+        label: "No Formal Education",
+        type: "text",
+        required: false,
+        section: "Educational Information",
+      };
+      onChange(hasNoEduField, "");
+    }
+  }, [isStudent, answers, fields, onChange]);
 
   const handleToggleNoEducation = (noEdu: boolean) => {
+    if (isStudent && noEdu) {
+      return;
+    }
     const hasNoEduField = fields.find((f) => f.key === "has_no_education") ?? {
       key: "has_no_education",
       label: "No Formal Education",
@@ -368,35 +393,57 @@ export function SectionFieldsView({
             </div>
 
             {/* Toggle Switch */}
-            <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
-              <button
-                type="button"
-                onClick={() => handleToggleNoEducation(false)}
-                className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
-                  !hasNoEducation
-                    ? "bg-white text-blue-900 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <span>🎓</span>
-                <span>
-                  {language === "bn" ? "শিক্ষাগত যোগ্যতা আছে" : "I Have Education"}
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleToggleNoEducation(true)}
-                className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
-                  hasNoEducation
-                    ? "bg-white text-emerald-800 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <span>🚫</span>
-                <span>
-                  {language === "bn" ? "কোনো শিক্ষা নেই" : "No Formal Education"}
-                </span>
-              </button>
+            <div className="flex flex-col items-start sm:items-end gap-1.5">
+              <div className="inline-flex rounded-xl bg-slate-100 p-1 border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => handleToggleNoEducation(false)}
+                  className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
+                    !hasNoEducation
+                      ? "bg-white text-blue-900 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <span>🎓</span>
+                  <span>
+                    {language === "bn" ? "শিক্ষাগত যোগ্যতা আছে" : "I Have Education"}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  disabled={isStudent}
+                  onClick={() => {
+                    if (isStudent) return;
+                    handleToggleNoEducation(true);
+                  }}
+                  title={
+                    isStudent
+                      ? language === "bn"
+                        ? "শিক্ষার্থীদের জন্য প্রাতিষ্ঠানিক শিক্ষা থাকা আবশ্যক"
+                        : "Students cannot select 'No Formal Education'"
+                      : undefined
+                  }
+                  className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs sm:text-sm font-bold transition-all ${
+                    isStudent
+                      ? "cursor-not-allowed opacity-40 text-slate-400"
+                      : hasNoEducation
+                        ? "bg-white text-emerald-800 shadow-sm"
+                        : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <span>🚫</span>
+                  <span>
+                    {language === "bn" ? "কোনো শিক্ষা নেই" : "No Formal Education"}
+                  </span>
+                </button>
+              </div>
+              {isStudent && (
+                <p className="text-[11px] font-semibold text-amber-700">
+                  {language === "bn"
+                    ? "ছাত্র/ছাত্রীদের প্রাতিষ্ঠানিক শিক্ষার তথ্য প্রদান আবশ্যক"
+                    : "Students must have formal education"}
+                </p>
+              )}
             </div>
           </div>
         </div>

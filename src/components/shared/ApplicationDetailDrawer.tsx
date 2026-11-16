@@ -140,14 +140,13 @@ export function ApplicationDetailDrawer({
   const [selectedStatus, setSelectedStatus] = useState<SubmissionStatus>("NEW");
   const [copiedRef, setCopiedRef] = useState(false);
 
-  // Active Tab: "form" | "documents" | "audit"
-  const [activeTab, setActiveTab] = useState<"form" | "documents" | "audit">("form");
+  // Active Tab: "form" | "audit"
+  const [activeTab, setActiveTab] = useState<"form" | "audit">("form");
 
   // In-modal search filter
   const [searchQuery, setSearchQuery] = useState("");
 
-  // In-modal preview document
-  const [previewDoc, setPreviewDoc] = useState<SubmissionDocumentMeta | null>(null);
+
 
   // PDF Download Confirmation Modal state
   const [pdfConfirm, setPdfConfirm] = useState<{ url: string; filename: string } | null>(null);
@@ -212,35 +211,6 @@ export function ApplicationDetailDrawer({
       toast.error("Failed to update status.");
     }
   };
-
-  // Uploaded docs mapping
-  const uploadedDocMap = useMemo(() => {
-    const map = new Map<string, SubmissionDocumentMeta>();
-    if (!detail?.documents) return map;
-    for (const doc of detail.documents) {
-      map.set(doc.documentKey, doc);
-    }
-    return map;
-  }, [detail?.documents]);
-
-  // Combined required documents
-  const allRequiredDocs = useMemo(() => {
-    if (!detail) return [];
-    const list: FormDocument[] = [];
-    if (detail.commonDocuments) list.push(...detail.commonDocuments);
-    if (detail.additionalDocuments) list.push(...detail.additionalDocuments);
-    return list;
-  }, [detail]);
-
-  const totalRequiredCount = allRequiredDocs.length;
-  const uploadedRequiredCount = useMemo(() => {
-    return allRequiredDocs.filter((d) => uploadedDocMap.has(d.key)).length;
-  }, [allRequiredDocs, uploadedDocMap]);
-
-  const completenessPercent =
-    totalRequiredCount > 0
-      ? Math.round((uploadedRequiredCount / totalRequiredCount) * 100)
-      : 100;
 
   // Filtered sections for search
   const filteredSections = useMemo(() => {
@@ -309,84 +279,6 @@ export function ApplicationDetailDrawer({
       maritalStatus,
     };
   }, [detail]);
-
-  const renderChecklistSection = (title: string, docs: FormDocument[]) => {
-    if (docs.length === 0) return null;
-    return (
-      <div className="space-y-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-          <FileCheck className="h-3.5 w-3.5 text-emerald-600" />
-          <span>{title} ({docs.length})</span>
-        </h4>
-        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-          {docs.map((reqDoc) => {
-            const uploadedMeta = uploadedDocMap.get(reqDoc.key);
-            const isGiven = Boolean(uploadedMeta);
-
-            return (
-              <div
-                key={reqDoc.key}
-                className={`flex items-start justify-between gap-3 rounded-lg border p-2.5 transition-colors ${
-                  isGiven
-                    ? "border-emerald-200 bg-emerald-50/40"
-                    : "border-slate-200 bg-white"
-                }`}
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-xs font-bold text-slate-900 truncate">
-                      {reqDoc.label}
-                    </p>
-                    {reqDoc.required && (
-                      <span className="shrink-0 text-[10px] font-semibold text-rose-600">
-                        *Req
-                      </span>
-                    )}
-                  </div>
-                  {reqDoc.note && (
-                    <p className="mt-0.5 text-[11px] text-slate-500 line-clamp-1">
-                      {reqDoc.note}
-                    </p>
-                  )}
-                  {uploadedMeta && (
-                    <p className="mt-0.5 font-mono text-[10px] text-emerald-800 truncate">
-                      {uploadedMeta.originalName} ({formatFileSize(uploadedMeta.sizeBytes)})
-                    </p>
-                  )}
-                </div>
-
-                <div className="shrink-0 flex items-center gap-1">
-                  {isGiven ? (
-                    <>
-                      <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
-                        <CheckCircle2 className="h-3 w-3 stroke-[2.5]" />
-                        Given
-                      </span>
-                      {uploadedMeta && (
-                        <button
-                          type="button"
-                          onClick={() => setPreviewDoc(uploadedMeta)}
-                          className="rounded p-1 text-slate-600 hover:bg-emerald-100 hover:text-emerald-900"
-                          title="Preview document"
-                        >
-                          <Eye className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-500">
-                      <XCircle className="h-3 w-3 text-slate-400" />
-                      Missing
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -539,7 +431,7 @@ export function ApplicationDetailDrawer({
 
             {/* Vitals Summary Strip */}
             {vitals && (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <div className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-2xs">
                   <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
                     Passport
@@ -578,19 +470,6 @@ export function ApplicationDetailDrawer({
                     {detail.applicantPhone || "—"}
                   </div>
                 </div>
-
-                <div className="rounded-lg border border-slate-200 bg-white p-2.5 shadow-2xs">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
-                    <span>Documents</span>
-                    <span className="font-bold text-emerald-700">{completenessPercent}%</span>
-                  </div>
-                  <div className="text-sm font-bold text-slate-900 mt-0.5">
-                    {detail.documents.length} Files Attached
-                  </div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">
-                    {uploadedRequiredCount} of {totalRequiredCount} Required Given
-                  </div>
-                </div>
               </div>
             )}
 
@@ -616,28 +495,6 @@ export function ApplicationDetailDrawer({
                     }`}
                   >
                     {filteredSections.reduce((acc, s) => acc + s.fields.length, 0)}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("documents")}
-                  className={`inline-flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
-                    activeTab === "documents"
-                      ? "bg-slate-900 text-white shadow-xs"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  }`}
-                >
-                  <FileCheck className="h-3.5 w-3.5" />
-                  <span>Documents & Checklist</span>
-                  <span
-                    className={`ml-1 rounded-full px-1.5 py-0.2 text-[10px] font-mono ${
-                      activeTab === "documents"
-                        ? "bg-white/20 text-white"
-                        : "bg-slate-100 text-slate-700"
-                    }`}
-                  >
-                    {detail.documents.length}
                   </span>
                 </button>
 
@@ -838,146 +695,7 @@ export function ApplicationDetailDrawer({
               </div>
             )}
 
-            {/* TAB 2: DOCUMENTS & CHECKLIST */}
-            {activeTab === "documents" && (
-              <div className="space-y-4">
-                {/* Required Documents Checklist Card */}
-                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 bg-[#fafbfc] px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white border border-slate-200 shadow-2xs">
-                        <FileCheck className="h-4 w-4 text-emerald-700" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                          Destination Visa Document Checklist
-                        </h4>
-                        <p className="text-[11px] text-slate-500">
-                          Requirements for {detail.countryName} ({detail.professionLabel} Category)
-                        </p>
-                      </div>
-                    </div>
 
-                    <span className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800">
-                      {uploadedRequiredCount} / {totalRequiredCount} Uploaded ({completenessPercent}%)
-                    </span>
-                  </div>
-
-                  <div className="p-4 space-y-4">
-                    {totalRequiredCount === 0 ? (
-                      <p className="text-xs text-slate-500 italic">
-                        No specific document checklist registered for this destination.
-                      </p>
-                    ) : (
-                      <>
-                        {renderChecklistSection("Mandatory Documents", detail.commonDocuments ?? [])}
-                        {renderChecklistSection(
-                          `${detail.professionLabel} Category Documents`,
-                          detail.additionalDocuments ?? [],
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Uploaded Files Gallery */}
-                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs">
-                  <div className="flex items-center justify-between border-b border-slate-200 bg-[#fafbfc] px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-white border border-slate-200 shadow-2xs">
-                        <FileText className="h-4 w-4 text-blue-700" />
-                      </div>
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                        Uploaded Files ({detail.documents.length})
-                      </h4>
-                    </div>
-
-                    {/* Uploaded Files Header */}
-                  </div>
-
-                  {detail.documents.length === 0 ? (
-                    <div className="p-8 text-center text-xs text-slate-500 italic">
-                      No files uploaded with this submission.
-                    </div>
-                  ) : (
-                    <div className="p-4">
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        {detail.documents.map((doc) => (
-                          <div
-                            key={doc.id}
-                            className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-2xs hover:shadow-xs transition-shadow"
-                          >
-                            <div className="space-y-1">
-                              <div className="flex items-start justify-between gap-2">
-                                <span className="rounded border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                                  {doc.group}
-                                </span>
-                                <span className="font-mono text-[10px] text-slate-400">
-                                  {formatFileSize(doc.sizeBytes)}
-                                </span>
-                              </div>
-                              <h5 className="text-xs font-bold text-slate-900 line-clamp-1">
-                                {doc.label}
-                              </h5>
-                              <p className="font-mono text-[11px] text-slate-500 truncate" title={doc.originalName}>
-                                {doc.originalName}
-                              </p>
-                              <p className="text-[10px] text-slate-400">
-                                {doc.mimeType} &bull; {format(new Date(doc.createdAt), "dd-MMM HH:mm")}
-                              </p>
-                            </div>
-
-                            <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-2.5">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setPreviewDoc(doc)}
-                                className="flex-1 h-7 text-xs font-semibold"
-                              >
-                                <Eye className="mr-1 h-3 w-3" />
-                                Preview
-                              </Button>
-                              {doc.mimeType === "application/pdf" ||
-                              doc.originalName.toLowerCase().endsWith(".pdf") ? (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  onClick={() =>
-                                    promptPdfDownload(
-                                      api.getAdminDocumentUrl(detail.id, doc.id, false),
-                                      doc.originalName,
-                                    )
-                                  }
-                                  className="flex-1 h-7 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold"
-                                >
-                                  <Download className="mr-1 h-3 w-3" />
-                                  Download
-                                </Button>
-                              ) : (
-                                <Button
-                                  asChild
-                                  size="sm"
-                                  className="flex-1 h-7 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold"
-                                >
-                                  <a
-                                    href={api.getAdminDocumentUrl(detail.id, doc.id, false)}
-                                    download={doc.originalName}
-                                  >
-                                    <Download className="mr-1 h-3 w-3" />
-                                    Download
-                                  </a>
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
 
             {/* TAB 3: AGENCY & AUDIT INFO (SUPER ADMIN ONLY) */}
             {activeTab === "audit" && isSuperAdmin && (
@@ -1099,119 +817,6 @@ export function ApplicationDetailDrawer({
           </div>
         </div>
       </DialogContent>
-
-      {/* DOCUMENT PREVIEW SUB-MODAL */}
-      <Dialog open={Boolean(previewDoc)} onOpenChange={(isOpen) => !isOpen && setPreviewDoc(null)}>
-        <DialogContent className="max-h-[92vh] w-[90vw] sm:max-w-3xl md:max-w-4xl p-0 overflow-hidden sm:rounded-2xl border-slate-200">
-          <DialogHeader className="border-b border-slate-200 px-5 py-3 bg-slate-50">
-            <div className="flex items-center justify-between pr-6">
-              <div>
-                <DialogTitle className="text-sm font-bold text-slate-900">
-                  {previewDoc?.label}
-                </DialogTitle>
-                <DialogDescription className="font-mono text-[11px] text-slate-500 mt-0.5">
-                  {previewDoc?.originalName} &bull; {previewDoc ? formatFileSize(previewDoc.sizeBytes) : ""}
-                </DialogDescription>
-              </div>
-
-              {previewDoc && detail && (
-                <div className="flex items-center gap-2">
-                  <Button asChild size="sm" variant="outline" className="h-7 text-xs font-semibold">
-                    <a
-                      href={api.getAdminDocumentUrl(detail.id, previewDoc.id, true)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <ExternalLink className="mr-1 h-3 w-3" />
-                      New Tab
-                    </a>
-                  </Button>
-                  {previewDoc.mimeType === "application/pdf" ||
-                  previewDoc.originalName.toLowerCase().endsWith(".pdf") ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() =>
-                        promptPdfDownload(
-                          api.getAdminDocumentUrl(detail.id, previewDoc.id, false),
-                          previewDoc.originalName,
-                        )
-                      }
-                      className="h-7 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold"
-                    >
-                      <Download className="mr-1 h-3 w-3" />
-                      Download
-                    </Button>
-                  ) : (
-                    <Button asChild size="sm" className="h-7 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">
-                      <a
-                        href={api.getAdminDocumentUrl(detail.id, previewDoc.id, false)}
-                        download={previewDoc.originalName}
-                      >
-                        <Download className="mr-1 h-3 w-3" />
-                        Download
-                      </a>
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-          </DialogHeader>
-
-          <div className="relative flex min-h-[350px] max-h-[68vh] items-center justify-center bg-slate-900/5 p-4 overflow-auto">
-            {previewDoc && detail && (
-              previewDoc.mimeType.startsWith("image/") ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={api.getAdminDocumentUrl(detail.id, previewDoc.id, true)}
-                  alt={previewDoc.label}
-                  className="max-h-[62vh] w-auto max-w-full rounded-lg object-contain shadow-md"
-                />
-              ) : previewDoc.mimeType === "application/pdf" ? (
-                <iframe
-                  src={api.getAdminDocumentUrl(detail.id, previewDoc.id, true)}
-                  title={previewDoc.label}
-                  className="h-[62vh] w-full rounded-lg border border-slate-200 bg-white"
-                />
-              ) : (
-                <div className="text-center p-8">
-                  <FileText className="mx-auto h-12 w-12 text-slate-400 mb-2" />
-                  <p className="text-xs font-semibold text-slate-700">
-                    Preview not supported for this file format ({previewDoc.mimeType})
-                  </p>
-                  {previewDoc.mimeType === "application/pdf" ||
-                  previewDoc.originalName.toLowerCase().endsWith(".pdf") ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() =>
-                        promptPdfDownload(
-                          api.getAdminDocumentUrl(detail.id, previewDoc.id, false),
-                          previewDoc.originalName,
-                        )
-                      }
-                      className="mt-4 text-xs font-bold"
-                    >
-                      <Download className="mr-1.5 h-3.5 w-3.5" />
-                      Download File to View
-                    </Button>
-                  ) : (
-                    <Button asChild size="sm" className="mt-4 text-xs font-bold">
-                      <a
-                        href={api.getAdminDocumentUrl(detail.id, previewDoc.id, false)}
-                        download={previewDoc.originalName}
-                      >
-                        <Download className="mr-1.5 h-3.5 w-3.5" />
-                        Download File to View
-                      </a>
-                    </Button>
-                  )}
-                </div>
-              )
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* PDF DOWNLOAD CONFIRMATION MODAL */}
       <Dialog

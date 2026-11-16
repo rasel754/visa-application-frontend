@@ -107,9 +107,10 @@ export function ReviewSection({
   );
 
   const isEduWaived =
-    String(answers["has_no_education"] ?? "") === "yes" ||
-    String(answers["has_no_education"] ?? "") === "true" ||
-    (answers["has_no_education"] as unknown) === true;
+    profession !== "student" &&
+    (String(answers["has_no_education"] ?? "") === "yes" ||
+      String(answers["has_no_education"] ?? "") === "true" ||
+      (answers["has_no_education"] as unknown) === true);
 
   const visibleErrorItems = errorItems.filter((item: ErrorItem) => {
     if (isEduWaived) {
@@ -235,10 +236,11 @@ export function ReviewSection({
         delete next["has_no_education"];
         return next;
       });
-    } else if (draftErrors[field.key]) {
-      const merged = { ...answers, ...nextDraft };
-      const err = validateFieldValue(field, value, merged);
+    } else {
       setDraftErrors((prev) => {
+        if (!prev[field.key]) return prev;
+        const merged = { ...answers, ...nextDraft, profession };
+        const err = validateFieldValue(field, value, merged);
         const next = { ...prev };
         if (err) {
           next[field.key] = err;
@@ -252,21 +254,25 @@ export function ReviewSection({
   };
 
   const handleDraftFieldBlur = (field: FormField) => {
-    const merged = { ...answers, ...draftAnswers };
-    const err = validateFieldValue(field, merged[field.key], merged);
-    setDraftErrors((prev) => {
-      const next = { ...prev };
-      if (err) {
-        next[field.key] = err;
-      } else {
-        delete next[field.key];
-      }
-      return next;
+    setDraftAnswers((currentDraft) => {
+      const merged = { ...answers, ...currentDraft, profession };
+      const val = currentDraft[field.key] ?? answers[field.key];
+      const err = validateFieldValue(field, val, merged);
+      setDraftErrors((prev) => {
+        const next = { ...prev };
+        if (err) {
+          next[field.key] = err;
+        } else {
+          delete next[field.key];
+        }
+        return next;
+      });
+      return currentDraft;
     });
   };
 
   const handleSaveSection = (group: SectionGroup) => {
-    const merged = { ...answers, ...draftAnswers };
+    const merged = { ...answers, ...draftAnswers, profession };
     const errors = validateSectionFields(group.fields, merged);
     if (Object.keys(errors).length > 0) {
       setDraftErrors(errors);
@@ -575,6 +581,7 @@ export function ReviewSection({
                     fieldErrors={draftErrors}
                     onChange={(field, val) => handleDraftFieldChange(group, field, val)}
                     onBlurValidate={handleDraftFieldBlur}
+                    profession={profession}
                   />
 
                   <div className="flex flex-col-reverse gap-2.5 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
@@ -720,44 +727,6 @@ export function ReviewSection({
           );
         })}
 
-        {/* Documents summary with inline Replace / Remove / Upload */}
-        {(commonDocuments.length > 0 || additionalDocuments.length > 0) && (
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
-              <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
-                <FileText className="h-4 w-4 text-blue-700" aria-hidden="true" />
-                {t.review.documentsTitle}
-              </h3>
-              <span className="text-xs text-slate-500">
-                {t.review.fileFormatHint}
-              </span>
-            </div>
-
-            <div className="px-4 py-2">
-              {commonDocuments.length > 0 && (
-                <>
-                  <p className="py-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-                    {t.review.commonDocsLabel}
-                  </p>
-                  <div className="divide-y divide-slate-100">
-                    {renderDocRows(commonDocuments)}
-                  </div>
-                </>
-              )}
-
-              {additionalDocuments.length > 0 && (
-                <>
-                  <p className="mt-3 border-t border-slate-200 pt-3 pb-2 text-xs font-bold uppercase tracking-wide text-blue-700">
-                    {t.review.additionalDocsLabel(professionLabel)}
-                  </p>
-                  <div className="divide-y divide-slate-100">
-                    {renderDocRows(additionalDocuments)}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

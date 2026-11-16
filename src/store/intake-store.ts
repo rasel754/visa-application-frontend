@@ -111,9 +111,16 @@ export const useIntakeStore = create<IntakeState>()(
         })),
 
       setProfession: (profession) =>
-        set({
-          profession,
-          savedAt: new Date().toISOString(),
+        set((state) => {
+          const nextAnswers = { ...state.answers };
+          if (profession === "student") {
+            delete nextAnswers["has_no_education"];
+          }
+          return {
+            profession,
+            answers: nextAnswers,
+            savedAt: new Date().toISOString(),
+          };
         }),
 
       setAnswer: (key, value, source, confidence) =>

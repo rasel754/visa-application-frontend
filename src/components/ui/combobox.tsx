@@ -111,7 +111,6 @@ export function Combobox({
                     onSelect={() => {
                       onValueChange(opt.value);
                       setOpen(false);
-                      onBlur?.();
                     }}
                     className="min-h-10 cursor-pointer py-2 text-base [&>svg:last-child]:hidden"
                   >

@@ -226,7 +226,6 @@ export function DatePicker({
             if (!date) return;
             onChange(formatLocalDateToYmd(date));
             setOpen(false);
-            onBlur?.();
           }}
         />
       </PopoverContent>
